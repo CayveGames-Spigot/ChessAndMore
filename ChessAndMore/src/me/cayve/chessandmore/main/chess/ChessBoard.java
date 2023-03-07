@@ -578,6 +578,7 @@ public class ChessBoard {
 	// Checks if a given world location is on a given side of the board (to join or
 	// leave)
 	boolean onSide(Location location, int side) {
+		if (location.getWorld() != corners[0].getWorld()) return false;
 		int half = flipped ? (corners[1].getBlockZ() - corners[0].getBlockZ()) / 2
 				: (corners[1].getBlockX() - corners[0].getBlockX()) / 2;
 		if (flipped) // idk man good luck with this one
