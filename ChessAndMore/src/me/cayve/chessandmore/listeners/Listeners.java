@@ -30,108 +30,110 @@ import me.cayve.chessandmore.main.uno.UnoBoardWizard;
 
 public class Listeners implements Listener {
 
-  @EventHandler
-  public void onEntityRemove(EntityDamageEvent e) {
-    UnoBoard.EntityDeathEvent(e);
-    SkipBoBoard.EntityDeathEvent(e);
-  }
-
-  @EventHandler
-  public void onSaturationEvent(FoodLevelChangeEvent e) {
-    UnoBoard.SaturationEvent(e);
-    SkipBoBoard.SaturationEvent(e);
-  }
-
-  @EventHandler
-  public void onPlayerInteract(PlayerInteractEvent e) {
-    if (e.getHand() != EquipmentSlot.OFF_HAND) {
-    	if (e.getAction().equals(Action.RIGHT_CLICK_BLOCK)) {
-    		SkipBoBoardWizard.SelectedBlock(e.getPlayer(), e.getClickedBlock().getLocation());
-    		UnoBoardWizard.SelectedBlock(e.getPlayer(), e.getClickedBlock().getLocation());
-    		ChessBoardWizard.selectedBlock(e.getPlayer(), e.getClickedBlock().getLocation());
-    		ChessBoard.selectedBlock(e.getPlayer().getUniqueId(), e.getClickedBlock());
-    	}
-    	else if (e.getAction().equals(Action.LEFT_CLICK_AIR) || e.getAction().equals(Action.LEFT_CLICK_BLOCK)) {
-    		if (SkipBoBoardWizard.LeftClick(e.getPlayer())) e.setCancelled(true);
-  	    }
-    }
-    UnoBoard.RightClickEvent(e);
-    SkipBoBoard.RightClickEvent(e);
-  }
-
-  @EventHandler
-  public void onChatEvent(AsyncPlayerChatEvent e) {
-    UnoBoard.PlayerChatEvent(e);
-  }
-
-  @EventHandler
-  public void playerQuitEvent(PlayerQuitEvent e) {
-    UnoBoard.PlayerLeaveEvent(e);
-    SkipBoBoardWizard.Left(e.getPlayer());
-    SkipBoBoard.PlayerLeaveEvent(e);
-  }
-
-  @EventHandler
-  public void playerDeathEvent(PlayerDeathEvent e) {
-    UnoBoard.PlayerDeathEvent(e);
-    SkipBoBoard.PlayerDeathEvent(e);
-  }
-
-  @EventHandler
-  public void playerJoinEvent(PlayerJoinEvent e) {
-    UnoBoard.PlayerJoinEvent(e);
-    SkipBoBoard.PlayerJoinEvent(e);
-  }
-
-  @EventHandler
-  public void onInventoryClick(InventoryClickEvent e) {
-    UnoBoard.InventoryInteractEvent(e);
-    SkipBoBoard.InventoryInteractEvent(e);
-    
-    if (e.getInventory() == ChessPiece.pawnPromotionInvs[0] || e.getInventory() == ChessPiece.pawnPromotionInvs[1]) {
-		e.setCancelled(true);
-		ChessBoard.inventoryInteract((Player)e.getWhoClicked(), e.getRawSlot());
-		e.getWhoClicked().closeInventory();
+	@EventHandler
+	public void dropItem(PlayerDropItemEvent e) {
+		UnoBoard.PlayerDropEvent(e);
+		Player player = (Player) e.getPlayer();
+		if (SkipBoBoard.IsPlayingAny(player.getUniqueId()))
+			e.setCancelled(true);
 	}
-  }
 
-  @EventHandler
-  public void onInventoryClose(InventoryCloseEvent e) {
-    UnoBoard.InventoryCloseEvent(e);
-    SkipBoBoard.InventoryCloseEvent(e);
-    
-    if (e.getInventory() == ChessPiece.pawnPromotionInvs[0] || e.getInventory() == ChessPiece.pawnPromotionInvs[1]) {
-    	ChessBoard.inventoryClosed((Player)e.getPlayer());
+	@EventHandler
+	public void onChatEvent(AsyncPlayerChatEvent e) {
+		UnoBoard.PlayerChatEvent(e);
 	}
-  }
 
-  @EventHandler
-  public void onItemPickup(EntityPickupItemEvent e) {
-    if (e.getEntityType() == EntityType.PLAYER) {
-      Player player = (Player) e.getEntity();
-      if (UnoBoard.IsPlayingAny(player.getUniqueId()) || SkipBoBoard.IsPlayingAny(player.getUniqueId()))
-        e.setCancelled(true);
-    }
-  }
+	@EventHandler
+	public void onEntityRemove(EntityDamageEvent e) {
+		UnoBoard.EntityDeathEvent(e);
+		SkipBoBoard.EntityDeathEvent(e);
+	}
 
-  @EventHandler
-  public void onInteractEntity(PlayerInteractAtEntityEvent e) {
-    if (e.getRightClicked().getType() == EntityType.ARMOR_STAND) {
-      UnoBoard.ArmorStandInteractEvent(e);
-      SkipBoBoard.ArmorStandInteractEvent(e);
-    }
-  }
+	@EventHandler
+	public void onInteractEntity(PlayerInteractAtEntityEvent e) {
+		if (e.getRightClicked().getType() == EntityType.ARMOR_STAND) {
+			UnoBoard.ArmorStandInteractEvent(e);
+			SkipBoBoard.ArmorStandInteractEvent(e);
+		}
+	}
 
-  @EventHandler
-  public void dropItem(PlayerDropItemEvent e) {
-    UnoBoard.PlayerDropEvent(e);
-    Player player = (Player) e.getPlayer();
-    if (SkipBoBoard.IsPlayingAny(player.getUniqueId()))
-      e.setCancelled(true);
-  }
-  
-  @EventHandler(ignoreCancelled = true)
+	@EventHandler
+	public void onInventoryClick(InventoryClickEvent e) {
+		UnoBoard.InventoryInteractEvent(e);
+		SkipBoBoard.InventoryInteractEvent(e);
+
+		if (e.getInventory() == ChessPiece.pawnPromotionInvs[0]
+				|| e.getInventory() == ChessPiece.pawnPromotionInvs[1]) {
+			e.setCancelled(true);
+			ChessBoard.inventoryInteract((Player) e.getWhoClicked(), e.getRawSlot());
+			e.getWhoClicked().closeInventory();
+		}
+	}
+
+	@EventHandler
+	public void onInventoryClose(InventoryCloseEvent e) {
+		UnoBoard.InventoryCloseEvent(e);
+		SkipBoBoard.InventoryCloseEvent(e);
+
+		if (e.getInventory() == ChessPiece.pawnPromotionInvs[0]
+				|| e.getInventory() == ChessPiece.pawnPromotionInvs[1]) {
+			ChessBoard.inventoryClosed((Player) e.getPlayer());
+		}
+	}
+
+	@EventHandler
+	public void onItemPickup(EntityPickupItemEvent e) {
+		if (e.getEntityType() == EntityType.PLAYER) {
+			Player player = (Player) e.getEntity();
+			if (UnoBoard.IsPlayingAny(player.getUniqueId()) || SkipBoBoard.IsPlayingAny(player.getUniqueId()))
+				e.setCancelled(true);
+		}
+	}
+
+	@EventHandler(ignoreCancelled = true)
 	public void onManipulate(PlayerArmorStandManipulateEvent e) {
 		e.setCancelled(ChessBoard.selectedPiece(e.getPlayer().getUniqueId(), e.getRightClicked()));
+	}
+
+	@EventHandler
+	public void onPlayerInteract(PlayerInteractEvent e) {
+		if (e.getHand() != EquipmentSlot.OFF_HAND) {
+			if (e.getAction().equals(Action.RIGHT_CLICK_BLOCK)) {
+				SkipBoBoardWizard.SelectedBlock(e.getPlayer(), e.getClickedBlock().getLocation());
+				UnoBoardWizard.SelectedBlock(e.getPlayer(), e.getClickedBlock().getLocation());
+				ChessBoardWizard.selectedBlock(e.getPlayer(), e.getClickedBlock().getLocation());
+				ChessBoard.selectedBlock(e.getPlayer().getUniqueId(), e.getClickedBlock());
+			} else if (e.getAction().equals(Action.LEFT_CLICK_AIR) || e.getAction().equals(Action.LEFT_CLICK_BLOCK)) {
+				if (SkipBoBoardWizard.LeftClick(e.getPlayer()))
+					e.setCancelled(true);
+			}
+		}
+		UnoBoard.RightClickEvent(e);
+		SkipBoBoard.RightClickEvent(e);
+	}
+
+	@EventHandler
+	public void onSaturationEvent(FoodLevelChangeEvent e) {
+		UnoBoard.SaturationEvent(e);
+		SkipBoBoard.SaturationEvent(e);
+	}
+
+	@EventHandler
+	public void playerDeathEvent(PlayerDeathEvent e) {
+		UnoBoard.PlayerDeathEvent(e);
+		SkipBoBoard.PlayerDeathEvent(e);
+	}
+
+	@EventHandler
+	public void playerJoinEvent(PlayerJoinEvent e) {
+		UnoBoard.PlayerJoinEvent(e);
+		SkipBoBoard.PlayerJoinEvent(e);
+	}
+
+	@EventHandler
+	public void playerQuitEvent(PlayerQuitEvent e) {
+		UnoBoard.PlayerLeaveEvent(e);
+		SkipBoBoardWizard.Left(e.getPlayer());
+		SkipBoBoard.PlayerLeaveEvent(e);
 	}
 }

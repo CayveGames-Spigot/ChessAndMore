@@ -13,3 +13,4 @@ unoTurnSpeed: 15
 
 # Chess
 allPawnsChance: 0.01
+hideValidMoves: false

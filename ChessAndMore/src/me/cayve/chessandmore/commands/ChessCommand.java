@@ -13,12 +13,13 @@ import me.cayve.chessandmore.ymls.TextYml;
 public class ChessCommand implements CommandExecutor {
 
 	public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
-		if (!label.equalsIgnoreCase("chess")) return true;
+		if (!label.equalsIgnoreCase("chess"))
+			return true;
 		if (!(sender instanceof Player)) {
 			sender.sendMessage("This is a player only command.");
 			return true;
 		}
-		
+
 		Player player = (Player) sender;
 		if (args.length == 0) {
 			player.sendMessage(TextYml.getText(player.isOp() ? "chessCommandOP" : "chessCommand"));
@@ -28,15 +29,15 @@ public class ChessCommand implements CommandExecutor {
 			ChessBoard.leave(player.getUniqueId());
 			return true;
 		}
-		if (!player.isOp() && !player.hasPermission("chessandmore.admin")) return true;
-		
+		if (!player.isOp() && !player.hasPermission("chessandmore.admin"))
+			return true;
+
 		if (args.length >= 2 && args[0].equalsIgnoreCase("create")) {
-			//Create board
+			// Create board
 			ChessBoardWizard.startWizard(player, args[1]);
 			return true;
-		}
-		else if (args.length >= 2 && (args[0].equalsIgnoreCase("delete") || args[0].equalsIgnoreCase("remove"))) {
-			//Delete board
+		} else if (args.length >= 2 && (args[0].equalsIgnoreCase("delete") || args[0].equalsIgnoreCase("remove"))) {
+			// Delete board
 			if (!ChessBoard.exists(args[1])) {
 				ToolbarMessage.send(player, TextYml.getText("boardNotFound"), ToolbarMessage.Type.Error);
 				return true;
@@ -49,8 +50,8 @@ public class ChessCommand implements CommandExecutor {
 		} else {
 			player.sendMessage(TextYml.getText("chessCommandOP"));
 		}
-		
+
 		return true;
 	}
-	
+
 }
