@@ -15,6 +15,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 
 import me.cayve.chessandmore.main.ChessAndMorePlugin;
 import me.cayve.chessandmore.main.Coord2D;
+import me.cayve.chessandmore.main.LocationUtil;
 import me.cayve.chessandmore.main.ToolbarMessage;
 import me.cayve.chessandmore.ymls.ChessBoardsYml;
 import me.cayve.chessandmore.ymls.TextYml;
@@ -186,8 +187,6 @@ public class ChessBoard {
 		boards = ChessBoardsYml.loadChessBoards();
 	}
 
-	// Public static functions
-
 	// Check if a board location is on the board
 	public static boolean onBoard(Coord2D location) {
 		return !(location.x >= 8 || location.x < 0 || location.y >= 8 || location.y < 0);
@@ -225,8 +224,18 @@ public class ChessBoard {
 			return;
 		board.selectedBlock(sender, blockLocation.getLocation());
 	}
+	
+	public static boolean setBoardTimer(String name, int timer) {
+		ChessBoard board = find(name);
+		if (board != null)
+		{
+			if (board.started) return false;
+			board.setPlayerTimer(timer);
+			return true;
+		}
+		return false;
+	}
 
-	// Private static functions
 
 	// Event for armor stand selection
 	public static boolean selectedPiece(UUID sender, ArmorStand selected) {
@@ -255,6 +264,12 @@ public class ChessBoard {
 	private int turn = 1;
 
 	private float timeLeft = 6; // The starting timer
+	
+	private int playerTime = -1; //The amount of time set for the board, -1 if no timer
+	
+	private float[] playerTimeLeft = { 0f, 0f }; //Player specific timers, if enabled on the board
+	
+	private ArmorStand[] timerDisplay; //The armor stands displaying the time left
 
 	private int state = 0;
 
@@ -274,6 +289,7 @@ public class ChessBoard {
 		this.name = name;
 		this.corners = corners;
 		players = new UUID[2];
+		timerDisplay = new ArmorStand[2];
 		pieces = new ChessPiece[8][8];
 		scale = (corners[1].getBlockX() - corners[0].getBlockX() + 1) / 8;
 		WAITING_MESSAGE = new ToolbarMessage.Message(TextYml.getText("waiting")).SetPermanent(true);
@@ -319,6 +335,15 @@ public class ChessBoard {
 				pieces[i][j] = null;
 			}
 		}
+		if (timerDisplay != null)
+		{
+			for (int i = 0; i < timerDisplay.length; i++)
+			{
+				if (timerDisplay[i] != null)
+					timerDisplay[i].remove();
+			}
+		}
+				
 	}
 
 	// Destroy all of the color's pieces
@@ -400,6 +425,17 @@ public class ChessBoard {
 
 	public float getScale() {
 		return scale;
+	}
+	
+	public float getTimer() {
+		return playerTime;
+	}
+	
+	//Mutators
+	public void setPlayerTimer(int time) 
+	{
+		if (started) return;
+		playerTime = time;
 	}
 
 	// Helper function to check if its a given player's turn
@@ -603,6 +639,11 @@ public class ChessBoard {
 			return;
 		selectedPiece.selectedBlock(blockLocation);
 	}
+	
+	String convertSecondsToTimer(int seconds) 
+	{
+		return (seconds / 60) + ":" + (seconds % 60 < 10 ? "0" + seconds % 60 : seconds % 60);
+	}
 
 	// Attempt to select piece to capture
 	void selectedPiece(UUID sender, ChessPiece piece) {
@@ -635,6 +676,20 @@ public class ChessBoard {
 				createPieces(i, true);
 			}
 		}
+		if (playerTime != -1)
+		{
+			for (int i = 0; i < 2; i++) {
+				playerTimeLeft[i] = playerTime;
+				timerDisplay[i] = corners[i].getWorld().spawn(LocationUtil.relativeLocation(corners[0], 
+						((corners[1].getBlockX() - corners[0].getBlockX())/2.0f) + (i*2-1) + 0.5f, 0, 0), ArmorStand.class);
+				timerDisplay[i].setVisible(false);
+				timerDisplay[i].setGravity(false);
+				timerDisplay[i].setCustomNameVisible(true);
+				timerDisplay[i].setCustomName(convertSecondsToTimer(playerTime));
+			}
+			
+			playerTimeLeft[1] = playerTime;
+		}
 		state = 2;
 		started = true;
 		messagePlayers(new ToolbarMessage.Message(TextYml.getText("gameStarted"), ToolbarMessage.Type.Success), false);
@@ -660,6 +715,19 @@ public class ChessBoard {
 						TextYml.getText("startingIn").replace("<seconds>", Math.round(timeLeft) + "")), false);
 			else if (timeLeft <= 0)
 				startGame();
+		}
+		else if (state == 2)
+		{
+			if (playerTime != -1)
+			{
+				playerTimeLeft[turn] -= 0.5f;
+				timerDisplay[turn].setCustomName(convertSecondsToTimer(Math.round(playerTimeLeft[turn])));
+				
+				if (playerTimeLeft[turn] <= 0) {
+					INFO_MESSAGE.message = TextYml.getText("outOfTime");
+					endGame();
+				}
+			}
 		}
 		// A match has concluded, resetting
 		else if (state == 3) {

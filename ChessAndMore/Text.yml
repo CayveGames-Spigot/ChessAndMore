@@ -20,10 +20,11 @@ Text:
   noWord: '&4&lNo'
   leftGame: 'You left the game!'
   joinedGame: 'You joined the game!'
+  invalidNumber: 'That was an invalid number!'
   
 # -----  CHESS TEXT -----
   chessCommand: '/chess leave'
-  chessCommandOP: '/chess (leave/create/delete/list) <boardName>'
+  chessCommandOP: '/chess (leave/create/delete/list/timer) <boardName> <timer:seconds>'
   selectNW: 'Please select the North-West corner of the board'
   selectSE: 'Please select the South-East corner of the board (Sneak to rotate board)'
   sameY: 'The board must be on the same Y level!'
@@ -33,8 +34,10 @@ Text:
   waiting: 'Waiting for other player ...'
   gameStarted: 'The game has started!'
   useLeave: 'Use "/chess leave" to leave at any time'
+  timerSet: 'Board <board> timer set to <seconds> seconds!'
   oops: 'Oops! All Pawns!'
   turn: '<color>s turn'
+  outOfTime: '&4&lOUT OF TIME'
   resettingIn: 'resetting in <seconds>...'
   checkmate: 'CHECKMATE'
   stalemate: 'STALEMATE'

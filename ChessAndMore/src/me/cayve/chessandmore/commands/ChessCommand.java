@@ -47,6 +47,24 @@ public class ChessCommand implements CommandExecutor {
 			return true;
 		} else if (args[0].equalsIgnoreCase("list")) {
 			player.sendMessage(ChessBoard.list());
+		} else if (args.length >= 3 && args[0].equalsIgnoreCase("timer")) {
+			if (!ChessBoard.exists(args[1])) {
+				ToolbarMessage.send(player, TextYml.getText("boardNotFound"), ToolbarMessage.Type.Error);
+				return true;
+			}
+			
+			int timer = -1;
+			try {
+				timer = Integer.parseInt(args[2]);
+				if (!ChessBoard.setBoardTimer(args[1], timer))
+					ToolbarMessage.send(player, TextYml.getText("boardNotFound"), ToolbarMessage.Type.Error);
+				else 
+					ToolbarMessage.send(player, TextYml.getText("timerSet")
+						.replace("<board>", args[1])
+						.replace("<seconds>", timer + ""), ToolbarMessage.Type.Success);
+			} catch (NumberFormatException e) {
+				ToolbarMessage.send(player, TextYml.getText("invalidNumber"), ToolbarMessage.Type.Error);
+			}
 		} else {
 			player.sendMessage(TextYml.getText("chessCommandOP"));
 		}

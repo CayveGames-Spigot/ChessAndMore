@@ -23,9 +23,14 @@ public class ChessBoardsYml {
 				Location[] corners = { info.customConfig.getLocation("ChessBoards." + board + ".NorthWest"),
 						info.customConfig.getLocation("ChessBoards." + board + ".SouthEast") };
 				boolean flipped = info.customConfig.getBoolean("ChessBoards." + board + ".Flipped");
+				int timer = info.customConfig.getInt("ChessBoards." + board + ".Timer");
 
 				if (corners[1] != null && corners[1].isWorldLoaded())
-					boards.add(new ChessBoard(board, corners, flipped));
+				{
+					ChessBoard newBoard = new ChessBoard(board, corners, flipped);
+					boards.add(newBoard);
+					newBoard.setPlayerTimer(timer);
+				}
 				else
 					throw new IllegalArgumentException();
 			} catch (IllegalArgumentException e) {
@@ -48,6 +53,7 @@ public class ChessBoardsYml {
 			info.customConfig.set("ChessBoards." + boards.get(i).getName() + ".SouthEast",
 					boards.get(i).getCorners()[1]);
 			info.customConfig.set("ChessBoards." + boards.get(i).getName() + ".Flipped", boards.get(i).getIsFlipped());
+			info.customConfig.set("ChessBoards." + boards.get(i).getName() + ".Timer", boards.get(i).getTimer());
 		}
 
 		YmlFiles.save(info);
