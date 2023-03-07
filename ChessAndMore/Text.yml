@@ -1,0 +1,143 @@
+# THIS PLUGIN IS EQUIPPED WITH HEX COLOR CODE CONVERSION
+# Use "#FFFFFFThis is text" for normal conversion
+# Use "<gradient #FFFFFF #000000>This is gradient text</gradient>" for gradient text
+# Use "<rainbow>This is rainbow text</rainbow>" for rainbow text
+
+Text:
+  alreadyCreating: 'You are already creating a board!'
+  boardNotFound: 'That board does not exist'
+  boardAlready: 'That board already exists'
+  boardDeleted: 'The board has been successfully deleted'
+  boardCreated: 'The board has been successfully created'
+  startedWizard: 'Started the creation of a new board'
+  list: 'List of Boards:'
+  listEmpty: 'There are no boards created!'
+  notEnoughPlayers: 'There are not players to continue playing!'
+  startingIn: '&7Starting in <seconds>...'
+  playerHost: ' - Host'
+  won: '&6&l<player> won!'
+  yesWord: '&2&lYes'
+  noWord: '&4&lNo'
+  leftGame: 'You left the game!'
+  joinedGame: 'You joined the game!'
+  
+# -----  CHESS TEXT -----
+  chessCommand: '/chess leave'
+  chessCommandOP: '/chess (leave/create/delete/list) <boardName>'
+  selectNW: 'Please select the North-West corner of the board'
+  selectSE: 'Please select the South-East corner of the board (Sneak to rotate board)'
+  sameY: 'The board must be on the same Y level!'
+  southEastRequired: 'This corner must be SOUTH EAST of the last one'
+  minimumSize: 'The board must be a MULTIPLE of 8 (8x8, 16x16, etc.)'
+  squareRequired: 'The board must be a SQUARE'
+  waiting: 'Waiting for other player ...'
+  gameStarted: 'The game has started!'
+  useLeave: 'Use "/chess leave" to leave at any time'
+  oops: 'Oops! All Pawns!'
+  turn: '<color>s turn'
+  resettingIn: 'resetting in <seconds>...'
+  checkmate: 'CHECKMATE'
+  stalemate: 'STALEMATE'
+  pawnPromotion: 'Pawn Promotion'
+  pawn: 'Pawn'
+  rook: 'Rook'
+  bishop: 'Bishop'
+  knight: 'Knight'
+  king: 'King'
+  queen: 'Queen'
+  
+# -----  SKIPBO TEXT -----
+  skipBoCommand: '/skipbo leave'
+  skipBoCommandOP: '/skipbo (leave/create/delete/list) <boardName>'
+  leftToConfirm: 'Right click again to change selection - Left click to confirm'
+  selectBuildPile: 'Please select where the <state> of the building/draw pile should be'
+  selectPlayerPile: 'Please select where the <state> of the discard/stock pile should be for player <playerNum>'
+  stateStart: 'start'
+  stateEnd: 'end'
+  skipboTurnInfo: '&7Turn: &f<player>'
+  playerDisplayName: '&c<player>'
+  cardCountDisplay: '&9Cards Left: <cardCount>'
+  
+# -----  UNO TEXT -----
+  unoCommand: '/uno leave'
+  unoCommandOP: '/uno (leave/create/delete/list) <boardName>'
+  selectDrawPile: 'Please select where the draw pile should be'
+  selectDiscardPile: 'Please select where the discard pile should be'
+  unoTurnInfo: '&7Top Card: <card> &7Turn: &f<player>'
+  jumpInAlert: '&6Jump In!'
+  stackAlert: '&6Stack!'
+  skipped: '&c&lSkipped!'
+  reversed: 'Reversed!'
+  swapped: 'Swapped Hands!'
+  handsRotated: 'Hands Rotated!'
+  callBluff: 'Call Bluff?'
+  calledBluff: '<decisionColor>&lCalled Bluff'
+  correct: '&2&lCorrect!'
+  incorrect: '&4&lIncorrect!'
+  unoAnnouncement: '&c&lUNO'
+  noUno: '&8&lNo Uno..'
+  swappedHands: 'You now have <player>s hand!'
+  
+  # Do not add color - These are what the player types
+  uno: 'uno'
+  draw: 'draw'
+  
+  SettingsMenu:
+    info: 'Info'
+    startGame: 'Start Game'
+    joinedPlayers: 'Joined players (<playerCount>):'
+    
+# Use '/' for a newline in any description option
+# -----  SKIPBO SETTINGS MENU -----
+    skipboSettingsInventory: 'Skip-Bo Settings'
+    clearDiscard: 'Clear Discard'
+    clearDiscardDescription: 'Players must also clear their entire discard pile to win'
+    cardStartCount: 'Starting Card Count'
+    cardStartCountDescription: 'The amount of cards each player will start with'
+    skipboInfoDescription: 'Get rid of all your cards by/playing them in order!//Use "skipbo leave" to leave at any time'
+    
+# -----  UNO SETTINGS MENU -----
+    unoSettingsInventory: 'Uno Settings'
+    jumpIn: 'Jump-In'
+    jumpInDescription: 'If a player has exactly the same card /(both number and color)
+      as the top card of the pile, /they will be given a chance to play it immediately,
+      /even if its not their turn'
+    swap70: 'Swap 7-0'
+    swap70Description: '-Playing a 7 allows a player to choose /another player to swap
+      hands with. /-Playing a 0 causes everyone to swap hands /in order of play'
+    stacking: 'Stacking'
+    stackingDescription: 'Allows a player to stack +2 and +4 cards'
+    forcePlay: 'Force Play'
+    forcePlayDescription: 'If a player draws a /card that can be played /during their
+      turn, they must play it'
+    drawToMatch: 'Draw to Match'
+    drawToMatchDescription: 'If a player draws a /card, they must /keep drawing until
+      they get a /card that can be played'
+    bluffCall: 'Call Bluff'
+    bluffCallDescription: 'If a player plays a +4 when they /could have played something
+      else, /the opposing player can call their bluff. /-If the attacker could /have
+      played another card, /they get +4 and the opposing player /does not have to
+      draw. /-If the attacker could NOT /have played another card, /the opposing player
+      must now /draw +6 instead of +4. /-The opposing player is shown the /attackers
+      hand during this play'
+    unoInfoDescription: 'Hotbar Menus: /-Throw card to play it /-Right click menu card /(after 9+) to enter submenu
+      /-Crouch to return to main menu /-Main menu automatically adjusts /for easy access to playable cards
+      / /Call Outs: /-Use chat and say "Uno" before /throwing your second to last card
+      /-You can also type "Draw" /instead of clicking the draw pile /
+      /-Use "uno leave" to leave at any time'
+    chooseColor: 'Choose Color'
+    chooseHand: 'Choose Hand'
+  
+  CardNames:
+# -----  SKIPBO CARDNAMES -----
+    joker: 'Joker'
+# -----  UNO CARDNAMES -----
+    red: 'Red'
+    green: 'Green'
+    yellow: 'Yellow'
+    blue: 'Blue'
+    skip: 'Skip'
+    reverse: 'Reverse'
+    plustwo: 'Plus Two'
+    wild: 'Wild'
+    plusfour: 'Plus Four'

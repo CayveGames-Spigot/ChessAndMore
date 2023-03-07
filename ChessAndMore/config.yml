@@ -1,0 +1,15 @@
+# Here is the current link to the resource pack:
+# https://cloud.rfgm.me/s/fDpBcJXjJMjMdnj/download/ChessAndMore.zip
+# Use that link in the "resource-pack" option in your server.properties, or apply it client-side
+# If for some reason the link does not work anymore, check for an update on SpigotMC.org
+# or join my Discord server here: https://discord.com/invite/RfzXPsDRRA
+# Makes it so that any player can create and destroy boards. False requires the permission chessandmore.admin
+anyoneCanCreate: false
+# Makes it so you can see the card a player is holding. False will censor it. (Applies to Uno and SkipBo)
+showCardDetails: false
+
+# Uno Turn Speed
+unoTurnSpeed: 15
+
+# Chess
+allPawnsChance: 0.01

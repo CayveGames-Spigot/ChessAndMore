@@ -1,0 +1,21 @@
+main: me.cayve.chessandmore.main.ChessAndMorePlugin
+name: ChessAndMore
+version: 1.0
+author: CaveBoy36
+api-version: 1.16
+description: Chess, Uno and SkipBo in Minecraft
+softdepend: [ProtocolLib]
+commands:
+  chess:
+    description: Chess command
+    usage: /chess
+  skipbo:
+    description: SkipBo command
+    usage: /skipbo
+  uno:
+    description: Uno command
+    usage: /uno
+permissions:
+  chessandmore.admin:
+    description: Allows chess, uno, and skipbo admin commands
+    default: op
