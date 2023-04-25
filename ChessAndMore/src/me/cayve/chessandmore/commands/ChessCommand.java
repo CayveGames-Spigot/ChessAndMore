@@ -27,6 +27,7 @@ public class ChessCommand implements CommandExecutor {
 		}
 		if (args[0].equalsIgnoreCase("leave")) {
 			ChessBoard.leave(player.getUniqueId());
+			ChessBoardWizard.Left(player);
 			return true;
 		}
 		if (!player.isOp() && !player.hasPermission("chessandmore.admin"))
@@ -34,6 +35,7 @@ public class ChessCommand implements CommandExecutor {
 
 		if (args.length >= 2 && args[0].equalsIgnoreCase("create")) {
 			// Create board
+			player.sendMessage(TextYml.getText("wizardLeave"));
 			ChessBoardWizard.startWizard(player, args[1]);
 			return true;
 		} else if (args.length >= 2 && (args[0].equalsIgnoreCase("delete") || args[0].equalsIgnoreCase("remove"))) {

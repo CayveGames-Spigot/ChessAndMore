@@ -26,6 +26,12 @@ public class ChessBoardWizard {
 				return true;
 		return false;
 	}
+	public static void Left(Player sender) {
+		if (activeWizards.containsKey(sender.getUniqueId())) {
+			ToolbarMessage.removePermanent(sender);
+			activeWizards.remove(sender.getUniqueId());
+		}
+	}
 	// Event for when a player selects a block
 	public static void selectedBlock(Player sender, Location location) {
 		if (!activeWizards.containsKey(sender.getUniqueId()))

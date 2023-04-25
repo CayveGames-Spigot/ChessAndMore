@@ -35,6 +35,7 @@ public class UnoCommand implements CommandExecutor {
 		}
 		if (args[0].equalsIgnoreCase("leave")) {
 			UnoBoard.Leave(player.getUniqueId());
+			UnoBoardWizard.Left(player);
 			return true;
 		}
 		if (!hasPermission)
@@ -42,6 +43,7 @@ public class UnoCommand implements CommandExecutor {
 
 		if (args.length >= 2 && args[0].equalsIgnoreCase("create")) {
 			// Create board
+			player.sendMessage(TextYml.getText("wizardLeave"));
 			UnoBoardWizard.StartWizard(player, args[1]);
 			return true;
 		} else if (args.length >= 2 && (args[0].equalsIgnoreCase("delete") || args[0].equalsIgnoreCase("remove"))) {

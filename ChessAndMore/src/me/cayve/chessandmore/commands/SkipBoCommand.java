@@ -43,6 +43,7 @@ public class SkipBoCommand implements CommandExecutor {
 
 		if (args.length >= 2 && args[0].equalsIgnoreCase("create")) {
 			// Create board
+			player.sendMessage(TextYml.getText("wizardLeave"));
 			SkipBoBoardWizard.StartWizard(player, args[1]);
 			return true;
 		} else if (args.length >= 2 && (args[0].equalsIgnoreCase("delete") || args[0].equalsIgnoreCase("remove"))) {

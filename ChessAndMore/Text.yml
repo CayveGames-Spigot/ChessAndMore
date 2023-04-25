@@ -21,6 +21,7 @@ Text:
   leftGame: 'You left the game!'
   joinedGame: 'You joined the game!'
   invalidNumber: 'That was an invalid number!'
+  wizardLeave: 'To leave the creation wizard, use: /<game> leave'
   
 # -----  CHESS TEXT -----
   chessCommand: '/chess leave'

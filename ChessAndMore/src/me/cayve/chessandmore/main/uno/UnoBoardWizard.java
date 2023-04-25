@@ -20,6 +20,12 @@ public class UnoBoardWizard {
 				return true;
 		return false;
 	}
+	public static void Left(Player sender) {
+		if (activeWizards.containsKey(sender.getUniqueId())) {
+			ToolbarMessage.removePermanent(sender);
+			activeWizards.remove(sender.getUniqueId());
+		}
+	}
 	public static void SelectedBlock(Player sender, Location location) {
 		if (!activeWizards.containsKey(sender.getUniqueId()))
 			return;
