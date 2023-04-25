@@ -25,7 +25,7 @@ Text:
   
 # -----  CHESS TEXT -----
   chessCommand: '/chess leave'
-  chessCommandOP: '/chess (leave/create/delete/list/timer) <boardName> <timer:seconds>'
+  chessCommandOP: '/chess (leave/create/delete/list) <boardName>'
   selectNW: 'Please select the North-West corner of the board'
   selectSE: 'Please select the South-East corner of the board (Sneak to rotate board)'
   sameY: 'The board must be on the same Y level!'
@@ -39,6 +39,7 @@ Text:
   oops: 'Oops! All Pawns!'
   turn: '<color>s turn'
   outOfTime: '&4&lOUT OF TIME'
+  noLimit: 'No Limit'
   resettingIn: 'resetting in <seconds>...'
   checkmate: 'CHECKMATE'
   stalemate: 'STALEMATE'

@@ -6,11 +6,13 @@ import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import me.cayve.chessandmore.main.ChessAndMorePlugin;
@@ -224,24 +226,21 @@ public class ChessBoard {
 			return;
 		board.selectedBlock(sender, blockLocation.getLocation());
 	}
-	
-	public static boolean setBoardTimer(String name, int timer) {
-		ChessBoard board = find(name);
-		if (board != null)
-		{
-			if (board.started) return false;
-			board.setPlayerTimer(timer);
-			return true;
-		}
-		return false;
-	}
-
 
 	// Event for armor stand selection
 	public static boolean selectedPiece(UUID sender, ArmorStand selected) {
 		ChessPiece piece = ChessPiece.isPiece(selected);
 		if (piece == null)
+		{
+			for (ChessBoard board : boards) {
+				if (board.timerDisplay != null && board.timerDisplay[2].equals(selected)) {
+					board.adjustTimer();
+					return true;
+				}
+			}
 			return false;
+		}
+			
 		piece.getBoard().selectedPiece(sender, piece);
 		return true;
 	}
@@ -289,7 +288,7 @@ public class ChessBoard {
 		this.name = name;
 		this.corners = corners;
 		players = new UUID[2];
-		timerDisplay = new ArmorStand[2];
+		timerDisplay = new ArmorStand[3];
 		pieces = new ChessPiece[8][8];
 		scale = (corners[1].getBlockX() - corners[0].getBlockX() + 1) / 8;
 		WAITING_MESSAGE = new ToolbarMessage.Message(TextYml.getText("waiting")).SetPermanent(true);
@@ -299,6 +298,32 @@ public class ChessBoard {
 	// Checks whether both players are online
 	boolean bothOnline() {
 		return getPlayer(players[0]) != null && getPlayer(players[1]) != null;
+	}
+	
+	void adjustTimer() {
+		switch (playerTime) {
+			case -1:
+				playerTime = 60;
+				break;
+			case 60:
+				playerTime = 120;
+				break;
+			case 120:
+				playerTime = 300;
+				break;
+			case 300:
+				playerTime = 600;
+				break;
+			case 600:
+				playerTime = -1;
+				break;
+			default:
+				playerTime = -1;
+				break;
+		}
+		
+		if (timerDisplay != null && timerDisplay[2] != null)
+			timerDisplay[2].setCustomName(convertSecondsToTimer(playerTime));
 	}
 
 	// Create the pieces for a given side
@@ -322,6 +347,16 @@ public class ChessBoard {
 				}
 			}
 		}
+		
+		if (timerDisplay != null && timerDisplay[2] == null) {
+			timerDisplay[2] = corners[0].getWorld().spawn(LocationUtil.relativeLocation(corners[0], 
+					((corners[1].getBlockX() - corners[0].getBlockX())/2.0f) + 0.5f, 0, 0), ArmorStand.class);
+			timerDisplay[2].setVisible(false);
+			timerDisplay[2].setGravity(false);
+			timerDisplay[2].setCustomNameVisible(true);
+			timerDisplay[2].setCustomName(convertSecondsToTimer(playerTime));
+			timerDisplay[2].getEquipment().setHelmet(new ItemStack(Material.CLOCK));
+		}
 	}
 
 	// Destroys all pieces and anything associated with the board
@@ -340,7 +375,11 @@ public class ChessBoard {
 			for (int i = 0; i < timerDisplay.length; i++)
 			{
 				if (timerDisplay[i] != null)
+				{
 					timerDisplay[i].remove();
+					timerDisplay[i] = null;
+				}
+				
 			}
 		}
 				
@@ -355,6 +394,14 @@ public class ChessBoard {
 					continue;
 				pieces[i][j].destroy();
 			}
+		}
+		if (players[0] == null && players[1] == null) {
+			if (timerDisplay != null && timerDisplay[2] != null)
+			{
+				timerDisplay[2].remove();
+				timerDisplay[2] = null;
+			}
+				
 		}
 	}
 
@@ -643,6 +690,7 @@ public class ChessBoard {
 	
 	String convertSecondsToTimer(int seconds) 
 	{
+		if (seconds == -1) return TextYml.getText("noLimit");
 		return (seconds / 60) + ":" + (seconds % 60 < 10 ? "0" + seconds % 60 : seconds % 60);
 	}
 
@@ -677,6 +725,8 @@ public class ChessBoard {
 				createPieces(i, true);
 			}
 		}
+		timerDisplay[2].remove();
+		timerDisplay[2] = null;
 		if (playerTime != -1)
 		{
 			for (int i = 0; i < 2; i++) {
