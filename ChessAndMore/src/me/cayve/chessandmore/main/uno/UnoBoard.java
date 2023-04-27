@@ -1183,7 +1183,7 @@ public class UnoBoard {
 		ArrayList<String> lore = new ArrayList<String>();
 		lore.add(TextYml.getText("SettingsMenu.joinedPlayers").replace("<playerCount>", players.size() + "/9"));
 		for (Player player : OnlinePlayers())
-			lore.add(player.getDisplayName()
+			lore.add(TextYml.getText("SettingsMenu.playerListColor").replace("<player>", player.getDisplayName())
 					+ (players.get(0).equals(player.getUniqueId()) ? TextYml.getText("playerHost") : ""));
 
 		meta.setLore(lore);

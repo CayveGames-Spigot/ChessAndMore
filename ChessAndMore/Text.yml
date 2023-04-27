@@ -91,6 +91,7 @@ Text:
     info: 'Info'
     startGame: 'Start Game'
     joinedPlayers: 'Joined players (<playerCount>):'
+    playerListColor: '&5<player>'
     
 # Use '/' for a newline in any description option
 # -----  SKIPBO SETTINGS MENU -----
