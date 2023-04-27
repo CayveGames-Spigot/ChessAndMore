@@ -234,7 +234,8 @@ public class ChessBoard {
 		{
 			for (ChessBoard board : boards) {
 				if (board.timerDisplay != null && board.timerDisplay[2].equals(selected)) {
-					board.adjustTimer();
+					if (isPlaying(sender) != null && isPlaying(sender).equals(board))
+						board.adjustTimer();
 					return true;
 				}
 			}
@@ -315,6 +316,9 @@ public class ChessBoard {
 				playerTime = 600;
 				break;
 			case 600:
+				playerTime = 1800;
+				break;
+			case 18000:
 				playerTime = -1;
 				break;
 			default:
