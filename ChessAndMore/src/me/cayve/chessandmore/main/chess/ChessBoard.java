@@ -318,7 +318,7 @@ public class ChessBoard {
 			case 600:
 				playerTime = 1800;
 				break;
-			case 18000:
+			case 1800:
 				playerTime = -1;
 				break;
 			default:
