@@ -233,7 +233,7 @@ public class ChessBoard {
 		if (piece == null)
 		{
 			for (ChessBoard board : boards) {
-				if (board.timerDisplay != null && board.timerDisplay[2].equals(selected)) {
+				if (board.timerDisplay != null && board.timerDisplay[2] != null && board.timerDisplay[2].equals(selected)) {
 					if (isPlaying(sender) != null && isPlaying(sender).equals(board))
 						board.adjustTimer();
 					return true;
