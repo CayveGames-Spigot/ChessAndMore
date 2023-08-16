@@ -78,7 +78,7 @@ public class ChessPiece {
 						for (Coord2D stand : piece.selectable) {
 							for (float i = 0; i < Math.PI * 2; i += Math.PI / 10 / piece.board.getScale()) {
 								Location location = LocationUtil.relativeLocation(
-										piece.board.getPieceLocation(stand.x, stand.y),
+										piece.board.getPieceWorldLocation(stand.x, stand.y),
 										(float) (0.4f * Math.cos(i)) * piece.board.getScale(), 1.4f,
 										(float) (0.4f * Math.sin(i) * piece.board.getScale()));
 								location.getWorld().spawnParticle(Particle.REDSTONE, location, 1,
@@ -152,7 +152,7 @@ public class ChessPiece {
 	// Constructor for piece
 	ChessPiece(int color, int type, Coord2D boardLocation, ChessBoard board) {
 		this.boardLocation = boardLocation;
-		Location location = board.getPieceLocation(boardLocation.x, boardLocation.y);
+		Location location = board.getPieceWorldLocation(boardLocation.x, boardLocation.y);
 		armorStand = location.getWorld().spawn(location, ArmorStand.class);
 		armorStand.setVisible(false);
 		armorStand.setGravity(false);
@@ -219,9 +219,9 @@ public class ChessPiece {
 		if (type == 0 && moveCount == 1 && (location.y == 3 || location.y == 4)) {
 			enPassant = true;
 		}
-		board.playSound(board.getPieceLocation(location.x, location.y), Sound.BLOCK_BONE_BLOCK_PLACE, 1, 0.75f);
+		board.playSound(board.getPieceWorldLocation(location.x, location.y), Sound.BLOCK_BONE_BLOCK_PLACE, 1, 0.75f);
 		this.boardLocation = location;
-		armorStand.teleport(board.getPieceLocation(location.x, location.y));
+		armorStand.teleport(board.getPieceWorldLocation(location.x, location.y));
 		armorStand.setRotation(((new Random()).nextFloat() - 0.5f) * 15, 0.0f);
 	}
 
@@ -281,7 +281,7 @@ public class ChessPiece {
 	// Event for selecting a block location
 	public void selectedBlock(Location location) {
 		for (Coord2D v : selectable) {
-			if (board.getBoardLocation(v.x, v.y).contains(location)) {
+			if (board.getBlockWorldLocation(v.x, v.y).equals(location)) {
 				selectLocation(v);
 				break;
 			}
@@ -402,7 +402,7 @@ public class ChessPiece {
 				}
 			}
 			// Castling
-			if (moveCount == 0 && boardLocation.x == 3) {
+			if (moveCount == 0 && boardLocation.x == 3 && (includeCheck && !ChessBoard.isInCheck(color, boardToCheck))) {
 				Coord2D v1 = new Coord2D(boardLocation.x + 3, boardLocation.y),
 						v2 = new Coord2D(boardLocation.x + 2, boardLocation.y),
 						v3 = new Coord2D(boardLocation.x + 1, boardLocation.y),

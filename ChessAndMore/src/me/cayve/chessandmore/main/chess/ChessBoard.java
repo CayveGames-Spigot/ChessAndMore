@@ -14,6 +14,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Vector;
 
 import me.cayve.chessandmore.main.ChessAndMorePlugin;
 import me.cayve.chessandmore.main.Coord2D;
@@ -342,7 +343,7 @@ public class ChessBoard {
 				if (y == color * 7) {
 					int pieceType = x == 0 || x == 7 ? 1
 							: x == 1 || x == 6 ? 3
-									: x == 2 || x == 5 ? 2 : x == 3 ? 4 + (flipped ? 1 : 0) : 5 - (flipped ? 1 : 0);
+									: x == 2 || x == 5 ? 2 : x == 3 ? 4 : 5;
 					if (pieceType != 4 && allPawn)
 						pieceType = 0;
 					pieces[x][y] = new ChessPiece(color, pieceType, new Coord2D(x, y), this);
@@ -427,19 +428,6 @@ public class ChessBoard {
 		return copy;
 	}
 
-	// World location of each grid space
-	ArrayList<Location> getBoardLocation(int x, int y) {
-		ArrayList<Location> locations = new ArrayList<Location>();
-		for (int i = 0; i < scale; i++) {
-			for (int j = 0; j < scale; j++) {
-				locations
-						.add(new Location(corners[0].getWorld(), corners[0].getBlockX() + scale * (flipped ? x : y) + i,
-								corners[0].getBlockY(), corners[0].getBlockZ() + scale * (flipped ? y : x) + j));
-			}
-		}
-		return locations;
-	}
-
 	public Location[] getCorners() {
 		return corners;
 	}
@@ -457,11 +445,15 @@ public class ChessBoard {
 	public ChessPiece getPiece(Coord2D location) {
 		return pieces[location.x][location.y];
 	}
+	
+	Location getBlockWorldLocation(int x, int y) {
+		return new Location(corners[0].getWorld(), corners[0].getBlockX() + ((flipped ? 7-x : y) * scale),
+				corners[0].getBlockY(), corners[0].getBlockZ() + ((flipped ? y : x) * scale));
+	}
 
 	// World location of a piece
-	Location getPieceLocation(int x, int y) {
-		return new Location(corners[0].getWorld(), corners[0].getBlockX() + ((flipped ? x : y) * scale) + scale / 2.0f,
-				corners[0].getBlockY() - 0.3f, corners[0].getBlockZ() + ((flipped ? y : x) * scale) + scale / 2.0f);
+	Location getPieceWorldLocation(int x, int y) {
+		return getBlockWorldLocation(x, y).add(new Vector(scale / 2.0f, -0.3f, scale / 2.0f));
 	}
 
 	// Helper function to get the player class of a UUID, if they're online
@@ -555,7 +547,7 @@ public class ChessBoard {
 		String promoted = "";
 		// Capture a piece
 		if (pieces[newLocation.x][newLocation.y] != null) {
-			playSound(getPieceLocation(newLocation.x, newLocation.y), Sound.ENTITY_ITEM_PICKUP, 1, 0.5f);
+			playSound(getPieceWorldLocation(newLocation.x, newLocation.y), Sound.ENTITY_ITEM_PICKUP, 1, 0.5f);
 			pieces[newLocation.x][newLocation.y].destroy();
 			notation = "x";
 			if (piece.getType() == 0)
@@ -577,7 +569,7 @@ public class ChessBoard {
 		if (piece.promoted) {
 			piece.promoted = false;
 			promoted = "=" + typeCharacter(piece.getType());
-			playSound(getPieceLocation(newLocation.x, newLocation.y), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 2);
+			playSound(getPieceWorldLocation(newLocation.x, newLocation.y), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 2);
 		}
 		// Check if move was en passant
 		if (piece.getType() == 0 && newLocation.x - piece.getLocation().x != 0) {
