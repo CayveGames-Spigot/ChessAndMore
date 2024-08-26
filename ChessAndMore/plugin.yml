@@ -5,6 +5,7 @@ author: CaveBoy36
 api-version: 1.16
 description: Chess, Uno and SkipBo in Minecraft
 softdepend: [ProtocolLib]
+load: POSTWORLD
 commands:
   chess:
     description: Chess command
