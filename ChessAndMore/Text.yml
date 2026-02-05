@@ -26,11 +26,9 @@ Text:
 # -----  CHESS TEXT -----
   chessCommand: '/chess leave'
   chessCommandOP: '/chess (leave/create/delete/list) <boardName>'
-  selectNW: 'Please select the North-West corner of the board'
-  selectSE: 'Please select the South-East corner of the board (Sneak to rotate board)'
+  selectFirstCorner: 'Please select the first corner of the board'
+  selectSecondCorner: 'Please select the second corner of the board (Sneak to rotate board)'
   sameY: 'The board must be on the same Y level!'
-  southEastRequired: 'This corner must be SOUTH EAST of the last one'
-  minimumSize: 'The board must be a MULTIPLE of 8 (8x8, 16x16, etc.)'
   squareRequired: 'The board must be a SQUARE'
   waiting: 'Waiting for other player ...'
   gameStarted: 'The game has started!'
@@ -61,7 +59,7 @@ Text:
   stateEnd: 'end'
   skipboTurnInfo: '&7Turn: &f<player>'
   playerDisplayName: '&c<player>'
-  cardCountDisplay: '&9Cards Left: <cardCount>'
+  cardCountDisplay: '&9<cardCount>'
   
 # -----  UNO TEXT -----
   unoCommand: '/uno leave'

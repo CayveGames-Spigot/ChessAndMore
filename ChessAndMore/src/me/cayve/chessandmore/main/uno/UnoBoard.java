@@ -12,18 +12,15 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.Sound;
-import org.bukkit.entity.ArmorStand;
-import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Interaction;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.Action;
-import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
-import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -32,9 +29,8 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scoreboard.Criteria;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
@@ -58,30 +54,80 @@ import me.cayve.chessandmore.ymls.UnoBoardsYml;
  * UnoBoard class to house multiplayer mechanics and interaction with cards
  */
 public class UnoBoard {
+	private String name;
 
+	private Location[] locations;
+
+	private ArrayList<UUID> players;
+
+	private HashMap<UUID, UnoHand> hands;
+
+	private ArrayList<UUID> waitingList;
+
+	private Inventory settingsInventory;
+
+	private boolean jumpIn = false, swap70 = false, stacking = true, forcePlay = true, drawToMatch = true,
+			bluffCall = false;
+
+	private ItemStack[] settingItems;
+
+	private UnoDeck drawPile;
+
+	private UnoStack discardPile;
+
+	private Inventory colorChoiceInventory, handChoiceInventory, bluffInventory;
+
+	/*
+	 * -1 - Destroying 0 - Join state 1 - Starting Countdown state 2 - Player
+	 * decision state 3 - Draw Delay 4 - Play Delay 5 - Color Choice 6 - Stack Draw
+	 * 7 - Quick Decision 8 - Inventory Swap 9 - Hand Choice 10 - Inventory Glance
+	 * 11 - Inventory Choice 12 - Jumping in 13 - End
+	 */
+	private int state = 0;
+
+	private UUID turn = null;
+
+	private int turnIndex = 0;
+
+	private float timer = 0;
+
+	private int turnDirection = 1;
+
+	private int currentStack = 0;
+
+	private UnoCard colorCard;
+
+	private UnoCardTemplate previousBluffCard;
+
+	private HashMap<UUID, Integer> missedTurns;
+
+	private Scoreboard scoreboard;
+
+	private Objective[] objectives;
+
+	private Team isTurn, notTurn, isNext;
+	
 	protected static ArrayList<UnoBoard> boards = new ArrayList<UnoBoard>();
 	public static float TURN_TIME = 15, STARTING_TIME = 6, DRAW_DELAY = 1, PLAY_DELAY = 0.5f, LONG_CHOICE = 10,
 			QUICK_CHOICE = 2, INVENTORY_SWAP = 2;
 	private static int MAX_MISSED = 2;
 
 	private static ToolbarMessage.Message GAME_FOUND;
-	public static void ArmorStandInteractEvent(PlayerInteractAtEntityEvent e) {
+	public static boolean isInteraction(Player player, Interaction i) {
 		for (UnoBoard board : boards) {
-			if (board.state > 1 && board.discardPile.HasArmorStand((ArmorStand) e.getRightClicked())) {
-				e.setCancelled(true);
-				if (board.state == 2)
-					board.hands.get(e.getPlayer().getUniqueId()).Update(e.getPlayer().getInventory().getHeldItemSlot());
-			} else if (board.drawPile != null && board.drawPile.HasArmorStand((ArmorStand) e.getRightClicked())) {
-				e.setCancelled(true);
+			if (board.drawPile != null && board.drawPile.isInteraction(i)) {
+				
 				board.IsActive();
-				if (e.getPlayer().getUniqueId().equals(board.turn) && board.state == 2)
+				if (player.getUniqueId().equals(board.turn) && board.state == 2)
 					board.DrawCard(true);
-				else if (board.state == 0 && !board.players.contains(e.getPlayer().getUniqueId())
+				else if (board.state == 0 && !board.players.contains(player.getUniqueId())
 						&& board.players.size() < 10 && board.drawPile != null
-						&& board.drawPile.HasArmorStand((ArmorStand) e.getRightClicked()))
-					board.JoinBoard(e.getPlayer().getUniqueId());
+						&& board.drawPile.isInteraction(i))
+					board.JoinBoard(player.getUniqueId());
+				return true;
 			}
 		}
+		return false;
 	}
 	// Board Creation and Deletion
 	public static void CreateBoard(UnoBoard board) {
@@ -96,16 +142,7 @@ public class UnoBoard {
 		for (UnoBoard board : boards)
 			board.Destroy();
 	}
-	public static void EntityDeathEvent(EntityDamageEvent e) {
-		if (e.getEntity().getType() == EntityType.ARMOR_STAND) {
-			ArmorStand stand = (ArmorStand) e.getEntity();
-			for (UnoBoard board : UnoBoard.boards) {
-				if ((board.drawPile != null && board.drawPile.HasArmorStand(stand))
-						|| (board.discardPile != null && board.discardPile.HasArmorStand(stand)))
-					e.setCancelled(true);
-			}
-		}
-	}
+
 	public static boolean Exists(String name) {
 		return Find(name) != null;
 	}
@@ -120,7 +157,7 @@ public class UnoBoard {
 	public static void Initialize() {
 		if (!ChessAndMorePlugin.getPlugin().getConfig().getBoolean("showCardDetails"))
 			UnoHandPackets.Initialize();
-		GAME_FOUND = new ToolbarMessage.Message(TextYml.getText("gameFound"), Type.Message).SetPermanent(true);
+		GAME_FOUND = new ToolbarMessage.Message(TextYml.getText("gameFound"), Type.Message).setPermanent(true);
 		Load();
 		new BukkitRunnable() {
 			@Override
@@ -264,7 +301,7 @@ public class UnoBoard {
 				new BukkitRunnable() {
 					@Override
 					public void run() {
-						board.hands.get(uuid).Add(board.drawPile.Draw(), true, true);
+						board.hands.get(uuid).Add(board.drawPile.draw(), true, true);
 						for (Player player : board.OnlinePlayers()) {
 							player.playSound(player.getLocation(), Sound.BLOCK_FLOWERING_AZALEA_BREAK, 1, 2);
 						}
@@ -336,8 +373,8 @@ public class UnoBoard {
 		for (UnoBoard board : boards) {
 			if (board.players.contains(uuid) && board.state >= 2) {
 				InventorySaver.SaveInventory(e.getPlayer());
-				e.getPlayer()
-						.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, Integer.MAX_VALUE, 1, true, false));
+				//e.getPlayer()
+				//		.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, Integer.MAX_VALUE, 1, true, false));
 				e.getPlayer().setScoreboard(board.scoreboard);
 				board.hands.get(uuid).Refresh();
 			}
@@ -354,7 +391,7 @@ public class UnoBoard {
 
 			if (board.players.contains(uuid) || board.waitingList.contains(uuid)) {
 				InventorySaver.LoadInventory(e.getPlayer());
-				e.getPlayer().removePotionEffect(PotionEffectType.GLOWING);
+				//e.getPlayer().removePotionEffect(PotionEffectType.GLOWING);
 			}
 		}
 	}
@@ -404,66 +441,13 @@ public class UnoBoard {
 				}
 				board.Broadcast(
 						new Message(TextYml.getText("won").replace("<player>", Bukkit.getOfflinePlayer(uuid).getName()))
-								.SetPermanent(true),
+								.setPermanent(true),
 						false);
 				for (Player p : board.OnlinePlayers())
 					p.playSound(p.getLocation(), Sound.BLOCK_END_PORTAL_SPAWN, 0.25f, 1);
 			}
 		}
 	}
-
-	private String name;
-
-	private Location[] locations;
-
-	private ArrayList<UUID> players;
-
-	private HashMap<UUID, UnoHand> hands;
-
-	private ArrayList<UUID> waitingList;
-
-	private Inventory settingsInventory;
-
-	private boolean jumpIn = false, swap70 = false, stacking = true, forcePlay = true, drawToMatch = true,
-			bluffCall = false;
-
-	private ItemStack[] settingItems;
-
-	private UnoDeck drawPile;
-
-	private UnoStack discardPile;
-
-	private Inventory colorChoiceInventory, handChoiceInventory, bluffInventory;
-
-	/*
-	 * -1 - Destroying 0 - Join state 1 - Starting Countdown state 2 - Player
-	 * decision state 3 - Draw Delay 4 - Play Delay 5 - Color Choice 6 - Stack Draw
-	 * 7 - Quick Decision 8 - Inventory Swap 9 - Hand Choice 10 - Inventory Glance
-	 * 11 - Inventory Choice 12 - Jumping in 13 - End
-	 */
-	private int state = 0;
-
-	private UUID turn = null;
-
-	private int turnIndex = 0;
-
-	private float timer = 0;
-
-	private int turnDirection = 1;
-
-	private int currentStack = 0;
-
-	private UnoCard colorCard;
-
-	private UnoCardTemplate previousBluffCard;
-
-	private HashMap<UUID, Integer> missedTurns;
-
-	private Scoreboard scoreboard;
-
-	private Objective[] objectives;
-
-	private Team isTurn, notTurn, isNext;
 
 	public UnoBoard(String name, Location[] locations) {
 		this.name = name;
@@ -614,7 +598,7 @@ public class UnoBoard {
 		Broadcast(new ToolbarMessage.Message(
 				TextYml.getText("unoTurnInfo").replace("<card>", discardPile.Peek().toString()).replace("<player>",
 						Bukkit.getOfflinePlayer(turn).getName()),
-				Type.Message, true).SetPermanent(true), true);
+				Type.Message, true).setPermanent(true), true);
 		colorCard = null;
 		CheckJumpIn();
 		if (waitingList.size() == 0)
@@ -722,7 +706,7 @@ public class UnoBoard {
 					Player player = Bukkit.getPlayer(uuid);
 					if (player != null && player.isOnline()) {
 						ToolbarMessage.removePermanent(player);
-						ToolbarMessage.send(player, new Message(TextYml.getText("jumpInAlert")).SetPermanent(true));
+						ToolbarMessage.send(player, new Message(TextYml.getText("jumpInAlert")).setPermanent(true));
 					}
 				}
 			}
@@ -739,7 +723,7 @@ public class UnoBoard {
 		Broadcast(
 				new ToolbarMessage.Message(
 						TextYml.getText("unoTurnInfo").replace("<card>", discardPile.Peek().toString())
-								.replace("<player>", Bukkit.getOfflinePlayer(turn).getName())).SetPermanent(true),
+								.replace("<player>", Bukkit.getOfflinePlayer(turn).getName())).setPermanent(true),
 				true);
 		player.openInventory(colorChoiceInventory);
 	}
@@ -775,7 +759,7 @@ public class UnoBoard {
 	}
 
 	public void Count() {
-		int count = discardPile.Size() + drawPile.Size();
+		int count = discardPile.Size() + drawPile.size();
 		for (UnoHand hand : hands.values())
 			count += hand.CardCount();
 		System.out.println(count);
@@ -838,7 +822,7 @@ public class UnoBoard {
 		players.clear();
 		hands.clear();
 		if (drawPile != null)
-			drawPile.Destroy();
+			drawPile.destroy();
 		drawPile = null;
 		if (discardPile != null)
 			discardPile.Destroy();
@@ -855,7 +839,7 @@ public class UnoBoard {
 		if (changeState)
 			ChangeState(3);
 		if (turn != null)
-			hands.get(turn).Add(drawPile.Draw(), true, true);
+			hands.get(turn).Add(drawPile.draw(), true, true);
 		for (Player player : OnlinePlayers()) {
 			player.playSound(player.getLocation(), Sound.BLOCK_FLOWERING_AZALEA_BREAK, 1, 2);
 		}
@@ -923,7 +907,7 @@ public class UnoBoard {
 			UpdateSettingsInventory();
 
 			if (state >= 2) {
-				drawPile.Insert(hands.get(uuid).Clear());
+				drawPile.insert(hands.get(uuid).Clear());
 				hands.remove(uuid);
 				if (turn.equals(uuid))
 					turn = players.get(GetNextTurnIndex(turnIndex, turnDirection));
@@ -937,7 +921,7 @@ public class UnoBoard {
 				Destroy();
 
 			if (player != null && player.isOnline()) {
-				player.removePotionEffect(PotionEffectType.GLOWING);
+				//player.removePotionEffect(PotionEffectType.GLOWING);
 				player.setScoreboard(Bukkit.getScoreboardManager().getNewScoreboard());
 				player.closeInventory();
 				try {
@@ -972,7 +956,7 @@ public class UnoBoard {
 				Player player = Bukkit.getPlayer(turn);
 				if (player != null && player.isOnline()) {
 					ToolbarMessage.removePermanent(player);
-					ToolbarMessage.send(player, new Message(TextYml.getText("stackAlert")).SetPermanent(true));
+					ToolbarMessage.send(player, new Message(TextYml.getText("stackAlert")).setPermanent(true));
 				}
 				hands.get(turn).QuickSelect(discardPile.Peek(), true);
 				waitingList.add(turn);
@@ -988,7 +972,7 @@ public class UnoBoard {
 		Broadcast(
 				new ToolbarMessage.Message(
 						TextYml.getText("unoTurnInfo").replace("<card>", discardPile.Peek().toString())
-								.replace("<player>", Bukkit.getOfflinePlayer(turn).getName())).SetPermanent(true),
+								.replace("<player>", Bukkit.getOfflinePlayer(turn).getName())).setPermanent(true),
 				true);
 
 	}
@@ -1067,7 +1051,7 @@ public class UnoBoard {
 					ToolbarMessage.removePermanent(p1.getPlayer());
 					ToolbarMessage.send(p1.getPlayer(),
 							new Message(TextYml.getText("swappedHands").replace("<player>", p2.getName()))
-									.SetPermanent(true));
+									.setPermanent(true));
 				}
 			}
 		} else if (card.GetNumber() == 7 && swap70) {
@@ -1093,9 +1077,9 @@ public class UnoBoard {
 	private void Start() {
 		scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
 		objectives = new Objective[2];
-		objectives[0] = scoreboard.registerNewObjective("PLCards", "dummy", "PLCards");
+		objectives[0] = scoreboard.registerNewObjective("PLCards", Criteria.DUMMY, "PLCards");
 		objectives[0].setDisplaySlot(DisplaySlot.PLAYER_LIST);
-		objectives[1] = scoreboard.registerNewObjective("Cards", "dummy", "Cards");
+		objectives[1] = scoreboard.registerNewObjective("Cards", Criteria.DUMMY, "Cards");
 		objectives[1].setDisplaySlot(DisplaySlot.BELOW_NAME);
 		notTurn = scoreboard.registerNewTeam("Red");
 		notTurn.setColor(ChatColor.RED);
@@ -1106,29 +1090,29 @@ public class UnoBoard {
 		for (Player player : OnlinePlayers()) {
 			player.setScoreboard(scoreboard);
 			player.closeInventory();
-			player.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, Integer.MAX_VALUE, 1, true, false));
+			//player.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, Integer.MAX_VALUE, 1, true, false));
 		}
 		waitingList.clear();
 		Broadcast(new ToolbarMessage.Message("", Type.Success), false);
 		discardPile = new UnoStack(false, false, locations[1]);
 		if (drawPile != null)
-			drawPile.Destroy();
+			drawPile.destroy();
 		drawPile = new UnoDeck(locations[0], discardPile);
-		UnoCard firstCard = drawPile.Draw();
+		UnoCard firstCard = drawPile.draw();
 		ArrayList<UnoCard> temp = new ArrayList<UnoCard>();
 		turn = players.get(turnIndex = new Random().nextInt(players.size()));
 		while (firstCard.GetAction() != UnoAction.Normal) {
 			temp.add(firstCard);
-			firstCard = drawPile.Draw();
+			firstCard = drawPile.draw();
 		}
-		drawPile.Insert(temp);
+		drawPile.insert(temp);
 		discardPile.Push(firstCard);
 
 		for (UUID uuid : players) {
 			UnoHand hand = new UnoHand(uuid, discardPile, objectives);
 			hands.put(uuid, hand);
 			for (int i = 0; i < 7; i++)
-				hand.Add(drawPile.Draw(), false, false);
+				hand.Add(drawPile.draw(), false, false);
 			hand.Refresh();
 		}
 		NextTurn();
@@ -1157,13 +1141,13 @@ public class UnoBoard {
 			p1.getPlayer().playSound(p1.getPlayer().getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1.5f);
 			ToolbarMessage.removePermanent(p1.getPlayer());
 			ToolbarMessage.send(p1.getPlayer(),
-					new Message(TextYml.getText("swappedHands").replace("<player>", p2.getName())).SetPermanent(true));
+					new Message(TextYml.getText("swappedHands").replace("<player>", p2.getName())).setPermanent(true));
 		}
 		if (p2 != null && p2.isOnline()) {
 			p2.getPlayer().playSound(p2.getPlayer().getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1, 1.5f);
 			ToolbarMessage.removePermanent(p2.getPlayer());
 			ToolbarMessage.send(p2.getPlayer(),
-					new Message(TextYml.getText("swappedHands").replace("<player>", p1.getName())).SetPermanent(true));
+					new Message(TextYml.getText("swappedHands").replace("<player>", p1.getName())).setPermanent(true));
 		}
 		BroadcastAlert(" ", TextYml.getText("swapped"), 5, 20, 5);
 		ChangeState(8);
@@ -1211,17 +1195,13 @@ public class UnoBoard {
 	}
 
 	private void UpdateTimer() {
-		if (discardPile != null)
-			discardPile.Update();
-		if (drawPile != null)
-			drawPile.Update();
 		if (state < 2) {
 			if (state == 0 && drawPile == null) {
 				drawPile = new UnoDeck(locations[0]);
 			}
 			if (state == 1) {
 				if (drawPile != null) {
-					drawPile.Destroy();
+					drawPile.destroy();
 					drawPile = null;
 				}
 				if (players.size() < 2) {
@@ -1316,7 +1296,7 @@ public class UnoBoard {
 							new ToolbarMessage.Message(
 									TextYml.getText("unoTurnInfo").replace("<card>", discardPile.Peek().toString())
 											.replace("<player>", Bukkit.getOfflinePlayer(turn).getName()),
-									Type.Message, true).SetPermanent(true),
+									Type.Message, true).setPermanent(true),
 							true);
 					waitingList.clear();
 					for (UnoHand hand : hands.values())

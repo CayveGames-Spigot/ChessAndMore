@@ -10,6 +10,7 @@
 anyoneCanCreate: false
 # Makes it so you can see the card a player is holding. False will censor it. (Applies to Uno and SkipBo)
 showCardDetails: false
+cardScale: 0.3
 
 # Uno Turn Speed
 unoTurnSpeed: 15
@@ -17,3 +18,6 @@ unoTurnSpeed: 15
 # Chess
 allPawnsChance: 0.01
 hideValidMoves: false
+pieceScale: 1.5
+# Whether boards that generate the grid always stay generated (128 entities per board)
+persistentBoards: false

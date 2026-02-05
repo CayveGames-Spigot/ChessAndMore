@@ -9,15 +9,12 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
-import org.bukkit.entity.ArmorStand;
-import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Interaction;
 import org.bukkit.entity.Player;
-import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -30,7 +27,6 @@ import org.bukkit.util.Vector;
 
 import me.cayve.chessandmore.main.ChessAndMorePlugin;
 import me.cayve.chessandmore.main.InventorySaver;
-import me.cayve.chessandmore.main.LocationUtil;
 import me.cayve.chessandmore.main.ToolbarMessage;
 import me.cayve.chessandmore.main.ToolbarMessage.Message;
 import me.cayve.chessandmore.main.ToolbarMessage.Type;
@@ -45,48 +41,33 @@ public class SkipBoBoard {
 	private static int MAX_MISSED = 2;
 
 	private static ToolbarMessage.Message GAME_FOUND;
-	public static void ArmorStandInteractEvent(PlayerInteractAtEntityEvent e) {
-		ArmorStand stand = (ArmorStand) e.getRightClicked();
+	public static void isInteraction(Player player, Interaction interaction) {
 		for (SkipBoBoard board : boards) {
-			if (board.state == 0 && !board.players.contains(e.getPlayer().getUniqueId()) && board.players.size() < 6
-					&& board.drawPile != null && board.drawPile.HasArmorStand((ArmorStand) e.getRightClicked()))
-				board.JoinBoard(e.getPlayer().getUniqueId());
+			if (board.state == 0 && !board.players.contains(player.getUniqueId()) && board.players.size() < 6
+					&& board.drawPile != null && board.drawPile.isInteraction(interaction))
+				board.JoinBoard(player.getUniqueId());
 
-			boolean hasStand = (board.discardPile != null && board.discardPile.HasArmorStand(stand))
-					|| (board.drawPile != null && board.drawPile.HasArmorStand(stand));
-			for (SkipBoPlayer player : board.hands.values())
-				if (player.HasArmorStand(stand))
-					hasStand = true;
-			if (board.buildingPiles != null) {
-				for (SkipBoStack stack : board.buildingPiles)
-					if (stack.HasArmorStand(stand))
-						hasStand = true;
-			}
-
-			if (hasStand)
-				e.setCancelled(true);
-
-			if (board.state == 2 && board.turn.equals(e.getPlayer().getUniqueId())) {
+			if (board.state == 2 && board.turn.equals(player.getUniqueId())) {
 				board.IsActive();
 				SkipBoPlayer playerHand = board.hands.get(board.turn);
-				if (e.getPlayer().getInventory().getItemInMainHand().getType() != Material.AIR) {
+				if (player.getInventory().getItemInMainHand().getType() != Material.AIR) {
 					SkipBoStack clickedStack = null;
 					for (SkipBoStack stack : board.buildingPiles)
-						if (stack.HasArmorStand(stand))
+						if (stack.isInteraction(interaction))
 							clickedStack = stack;
 					if (clickedStack != null) {
 						SkipBoCardTemplate templateCard = SkipBoCard
-								.FromTags(e.getPlayer().getInventory().getItemInMainHand()),
+								.FromTags(player.getInventory().getItemInMainHand()),
 								topCard = clickedStack.Peek();
 						if ((topCard.GetNumber() == -1 && templateCard.GetNumber() == 1)
 								|| templateCard.GetNumber() == topCard.GetNumber() + 1
 								|| templateCard.GetNumber() == 0) {
 							SkipBoCard cardToPlay = null;
-							if (e.getPlayer().getInventory().getHeldItemSlot() == 6) {
+							if (player.getInventory().getHeldItemSlot() == 6) {
 								cardToPlay = playerHand.PopSelectedCard();
 							} else {
 								cardToPlay = playerHand.hand
-										.Remove(SkipBoCard.FromTags(e.getPlayer().getInventory().getItemInMainHand()));
+										.Remove(SkipBoCard.FromTags(player.getInventory().getItemInMainHand()));
 							}
 							if (cardToPlay != null) {
 								if (topCard.GetNumber() == -1)
@@ -102,17 +83,17 @@ public class SkipBoBoard {
 								}
 							}
 						}
-					} else if (e.getPlayer().getInventory().getHeldItemSlot() != 6
-							&& playerHand.DiscardHasArmorStand(stand) != null) {
+					} else if (player.getInventory().getHeldItemSlot() != 6
+							&& playerHand.DiscardHasArmorStand(interaction) != null) {
 						SkipBoCard card = playerHand.hand
-								.Remove(SkipBoCard.FromTags(e.getPlayer().getInventory().getItemInMainHand()));
-						if (playerHand.DiscardHasArmorStand(stand).Peek().GetNumber() == -1)
-							playerHand.DiscardHasArmorStand(stand).Pop();
-						playerHand.DiscardHasArmorStand(stand).Push(card);
+								.Remove(SkipBoCard.FromTags(player.getInventory().getItemInMainHand()));
+						if (playerHand.DiscardHasArmorStand(interaction).Peek().GetNumber() == -1)
+							playerHand.DiscardHasArmorStand(interaction).Pop();
+						playerHand.DiscardHasArmorStand(interaction).Push(card);
 						board.ChangeState(5);
 					}
-				} else if (playerHand.HasArmorStand(stand)) {
-					playerHand.SelectTopCard(stand);
+				} else if (playerHand.HasArmorStand(interaction)) {
+					playerHand.SelectTopCard(interaction);
 				}
 			}
 		}
@@ -130,26 +111,7 @@ public class SkipBoBoard {
 		for (SkipBoBoard board : boards)
 			board.Destroy();
 	}
-	public static void EntityDeathEvent(EntityDamageEvent e) {
-		if (e.getEntity().getType() == EntityType.ARMOR_STAND) {
-			ArmorStand stand = (ArmorStand) e.getEntity();
-			for (SkipBoBoard board : SkipBoBoard.boards) {
-				if ((board.drawPile != null && board.drawPile.HasArmorStand(stand)))
-					e.setCancelled(true);
-				else if (board.state >= 2) {
-					boolean has = board.discardPile.HasArmorStand(stand);
-					for (SkipBoStack stack : board.buildingPiles)
-						if (stack.HasArmorStand(stand))
-							has = true;
-					for (SkipBoPlayer player : board.hands.values())
-						if (player.HasArmorStand(stand))
-							has = true;
-					if (has)
-						e.setCancelled(true);
-				}
-			}
-		}
-	}
+
 	public static boolean Exists(String name) {
 		return Find(name) != null;
 	}
@@ -164,7 +126,7 @@ public class SkipBoBoard {
 	public static void Initialize() {
 		if (!ChessAndMorePlugin.getPlugin().getConfig().getBoolean("showCardDetails"))
 			SkipBoHandPackets.Initialize();
-		GAME_FOUND = new ToolbarMessage.Message(TextYml.getText("gameFound"), Type.Message).SetPermanent(true);
+		GAME_FOUND = new ToolbarMessage.Message(TextYml.getText("gameFound"), Type.Message).setPermanent(true);
 		Load();
 		new BukkitRunnable() {
 			@Override
@@ -328,7 +290,7 @@ public class SkipBoBoard {
 				}
 				board.Broadcast(
 						new Message(TextYml.getText("won").replace("<player>", Bukkit.getOfflinePlayer(uuid).getName()))
-								.SetPermanent(true),
+								.setPermanent(true),
 						false);
 				for (Player p : board.OnlinePlayers())
 					p.playSound(p.getLocation(), Sound.BLOCK_END_PORTAL_SPAWN, 0.25f, 1);
@@ -608,7 +570,7 @@ public class SkipBoBoard {
 			ChangeState(2);
 		Broadcast(new ToolbarMessage.Message(
 				TextYml.getText("skipboTurnInfo").replace("<player>", Bukkit.getOfflinePlayer(turn).getName()))
-						.SetPermanent(true),
+						.setPermanent(true),
 				true);
 
 	}
@@ -629,11 +591,11 @@ public class SkipBoBoard {
 		}
 		waitingList.clear();
 		Broadcast(new ToolbarMessage.Message("", Type.Success), false);
-		discardPile = new SkipBoStack(true, true, true, LocationUtil.relativeLocation(locations[0], 0, -1, 0));
+		discardPile = new SkipBoStack(true, true, true, locations[0], true);
 		Location[] mainLocations = LocationsFromSE(locations[0], locations[1]);
 		buildingPiles = new SkipBoStack[4];
 		for (int i = 0; i < 4; i++) {
-			buildingPiles[i] = new SkipBoStack(false, true, false, mainLocations[i + 1]);
+			buildingPiles[i] = new SkipBoStack(false, true, false, mainLocations[i + 1], true);
 			buildingPiles[i].Push(new SkipBoCard(-1));
 		}
 		if (drawPile != null)
@@ -688,10 +650,6 @@ public class SkipBoBoard {
 	 * decision state 3 - Draw Delay 4 - Play Delay 5 - Final Play Delay 6 - End
 	 */
 	private void UpdateTimer() {
-		if (discardPile != null)
-			discardPile.Update();
-		if (drawPile != null)
-			drawPile.Update();
 		if (state < 2) {
 			if (state == 0 && drawPile == null) {
 				drawPile = new SkipBoDeck(locations[0]);

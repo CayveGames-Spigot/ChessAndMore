@@ -6,9 +6,11 @@ import java.util.Stack;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Transformation;
 
 import me.cayve.chessandmore.enums.UnoAction;
 import me.cayve.chessandmore.main.ChessAndMorePlugin;
@@ -21,27 +23,27 @@ public class UnoStack {
 	private boolean faceDown, uniform;
 	private Location location;
 	private Stack<UnoCard> cards;
-	private ArrayList<ArmorStand> armorStands;
+	private ArrayList<ItemDisplay> displays;
 	private Vector3D offset = new Vector3D(0, 0.125f, 0);
 	private int displayCount = 4;
 
-	private boolean destroyed = false;
-
-	public UnoStack(boolean faceDown, boolean uniform, Location location) {
+	public UnoStack(boolean faceDown, boolean uniform, Location stackLocation) {
 		this.faceDown = faceDown;
-		this.location = location;
+		this.location = stackLocation;
 		this.uniform = uniform;
 		cards = new Stack<UnoCard>();
-		armorStands = new ArrayList<ArmorStand>();
+		displays = new ArrayList<ItemDisplay>();
+		
+		offset.y *= ChessAndMorePlugin.getCardScale();
 
 		SetDisplayCount(displayCount);
 		AdjustStandLocations();
 		new BukkitRunnable() {
 			@Override
 			public void run() {
-				for (ArmorStand stand : armorStands) {
+				for (ItemDisplay display : displays) {
 					if (!uniform)
-						stand.setRotation(new Random().nextInt(360), 0);
+						display.setRotation(new Random().nextInt(360), 0);
 				}
 			}
 		}.runTaskLater(ChessAndMorePlugin.getPlugin(), 2L);
@@ -56,21 +58,16 @@ public class UnoStack {
 			Push(temp.pop());
 	}
 
-	// -0.18 to bottom
+
 	// 0.125 difference between cards
 	private void AdjustStandLocations() {
-		new BukkitRunnable() {
-			@Override
-			public void run() {
-				for (int i = 0; i < armorStands.size(); i++) {
-					if (i == 0)
-						armorStands.get(0).teleport(LocationUtil.relativeLocation(location, 0, -0.19f - offset.y, 0));
-					else
-						armorStands.get(i)
-								.teleport(LocationUtil.relativeLocation(armorStands.get(i - 1).getLocation(), offset));
-				}
-			}
-		}.runTaskLater(ChessAndMorePlugin.getPlugin(), 2L);
+		for (int i = 0; i < displays.size(); i++) {
+			if (i == 0)
+				displays.get(0).teleport(LocationUtil.relativeLocation(location, 0, 0.5f * ChessAndMorePlugin.getCardScale(), 0));
+			else
+				displays.get(i)
+						.teleport(LocationUtil.relativeLocation(displays.get(i - 1).getLocation(), offset));
+		}
 	}
 
 	public Stack<UnoCard> Clear() {
@@ -80,15 +77,11 @@ public class UnoStack {
 	}
 
 	public void Destroy() {
-		destroyed = true;
-		while (armorStands.size() != 0) {
-			armorStands.get(0).remove();
-			armorStands.remove(0);
+		while (displays.size() != 0) {
+			ChessAndMorePlugin.unsaveEntity(displays.get(0));
+			displays.get(0).remove();
+			displays.remove(0);
 		}
-	}
-
-	public boolean HasArmorStand(ArmorStand stand) {
-		return armorStands.contains(stand);
 	}
 
 	public UnoCardTemplate Peek() {
@@ -100,19 +93,18 @@ public class UnoStack {
 	public UnoCard Pop() {
 		if (cards.isEmpty())
 			return null;
-		for (ArmorStand stand : armorStands)
-			stand.getEquipment().setHelmet(new ItemStack(Material.AIR));
+		for (ItemDisplay display : displays)
+			display.setItemStack(new ItemStack(Material.AIR));
 		UnoCard top = cards.pop();
 
 		Stack<UnoCard> temp = new Stack<UnoCard>();
 		while (temp.size() != displayCount && !cards.isEmpty())
 			temp.push(cards.pop());
 
-		int index = 1;
+		int index = 0;
 		while (!temp.isEmpty()) {
 			UnoCard card = temp.pop();
-			armorStands.get(index).getEquipment()
-					.setHelmet(faceDown ? UnoCard.GetItem(UnoAction.Normal, true) : card.GetItem());
+			displays.get(index).setItemStack(faceDown ? UnoCard.GetItem(UnoAction.Normal, true) : card.GetItem());
 			cards.push(card);
 			index++;
 		}
@@ -125,31 +117,22 @@ public class UnoStack {
 			return;
 		cards.push(card);
 		if (cards.size() <= displayCount) {
-			for (int i = 1; i < armorStands.size() - 1; i++) {
-				if (armorStands.get(i).getEquipment().getHelmet().getType() != Material.AIR)
+			for (int i = 0; i < displays.size(); i++) {
+				if (displays.get(i).getItemStack().getType() != Material.AIR)
 					continue;
-				armorStands.get(i).getEquipment()
-						.setHelmet(faceDown ? UnoCard.GetItem(UnoAction.Normal, true) : card.GetItem());
+				displays.get(i).setItemStack(faceDown ? UnoCard.GetItem(UnoAction.Normal, true) : card.GetItem());
 				break;
 			}
 		} else {
-			Location location = armorStands.get(displayCount + 1).getLocation();
-			for (int i = displayCount + 1; i > 0; i--) {
-				Location newLocation = armorStands.get(i - 1).getLocation(),
-						oldLocation = armorStands.get(i).getLocation();
-				newLocation.setPitch(oldLocation.getPitch());
-				newLocation.setYaw(oldLocation.getYaw());
-				armorStands.get(i).teleport(newLocation);
+			//Excludes new top card
+			for (int i = 0; i < displayCount - 1; i++) {
+				displays.get(i).setRotation(displays.get(i + 1).getLocation().getYaw(), 0);
+				displays.get(i).setItemStack(displays.get(i + 1).getItemStack());
 			}
-			armorStands.get(displayCount + 1).getEquipment()
-					.setHelmet(faceDown ? UnoCard.GetItem(UnoAction.Normal, true) : card.GetItem());
-			ArmorStand stand = armorStands.get(0);
-			armorStands.remove(0);
-			armorStands.add(stand);
-			stand.getEquipment().setHelmet(new ItemStack(Material.AIR));
-			stand.teleport(location);
+			//Updates new top card
+			displays.get(displayCount - 1).setItemStack(faceDown ? UnoCard.GetItem(UnoAction.Normal, true) : card.GetItem());
 			if (!uniform)
-				stand.setRotation(new Random().nextInt(360), 0);
+				displays.get(displayCount - 1).setRotation(new Random().nextInt(360), 0);
 		}
 	}
 
@@ -159,10 +142,9 @@ public class UnoStack {
 		for (int i = 0; i < count; i++)
 			temp.push(cards.pop());
 
-		for (int i = 1; i < count + 1; i++) {
+		for (int i = 0; i < count; i++) {
 			UnoCard tempCard = temp.pop();
-			armorStands.get(i).getEquipment()
-					.setHelmet(faceDown ? UnoCard.GetItem(UnoAction.Normal, true) : tempCard.GetItem());
+			displays.get(i).setItemStack(faceDown ? UnoCard.GetItem(UnoAction.Normal, true) : tempCard.GetItem());
 			cards.push(tempCard);
 		}
 	}
@@ -171,18 +153,22 @@ public class UnoStack {
 		if (count < 0)
 			return;
 		displayCount = count;
-		while (armorStands.size() > displayCount + 2) {
-			armorStands.get(0).remove();
-			armorStands.remove(0);
+		while (displays.size() > displayCount) {
+			ChessAndMorePlugin.unsaveEntity(displays.get(0));
+			displays.get(0).remove();
+			displays.remove(0);
 		}
-		int startSize = armorStands.size();
-		while (startSize < displayCount + 2) {
+		int startSize = displays.size();
+		while (startSize < displayCount) {
 			startSize++;
-			ArmorStand stand = location.getWorld().spawn(LocationUtil.relativeLocation(location, 0, -1, 0),
-					ArmorStand.class);
-			stand.setVisible(false);
-			stand.setGravity(false);
-			armorStands.add(stand);
+			ItemDisplay display = location.getWorld().spawn(location, ItemDisplay.class);
+			display.getPersistentDataContainer().set(ChessAndMorePlugin.getPluginKey(), PersistentDataType.INTEGER, 1);
+			ChessAndMorePlugin.saveEntity(display);
+			Transformation transform = display.getTransformation();
+			transform.getScale().set(ChessAndMorePlugin.getCardScale());
+			display.setTransformation(transform);
+			
+			displays.add(display);
 		}
 		AdjustStandLocations();
 		AdjustDisplayedCards();
@@ -209,20 +195,11 @@ public class UnoStack {
 		return cards.size();
 	}
 
-	public void Update() {
-		if (destroyed)
-			return;
-		boolean hasDead = false;
-		for (ArmorStand stand : armorStands)
-			if (stand.isDead())
-				hasDead = true;
-		if (armorStands.size() != displayCount + 2 || hasDead) {
-			while (armorStands.size() > 0) {
-				armorStands.get(0).remove();
-				armorStands.remove(0);
-			}
-			SetDisplayCount(displayCount);
-		}
+	public Vector3D getCardOffset() {
+		return offset;
 	}
-
+	
+	public int getDisplayCount() {
+		return displayCount;
+	}
 }

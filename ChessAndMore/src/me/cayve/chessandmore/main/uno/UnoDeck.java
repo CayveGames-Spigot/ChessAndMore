@@ -4,42 +4,59 @@ import java.util.ArrayList;
 import java.util.Random;
 
 import org.bukkit.Location;
-import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.Interaction;
+import org.bukkit.entity.ItemDisplay;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.util.Transformation;
 
 import me.cayve.chessandmore.enums.UnoAction;
 import me.cayve.chessandmore.enums.UnoColor;
+import me.cayve.chessandmore.main.ChessAndMorePlugin;
 import me.cayve.chessandmore.main.LocationUtil;
 
 public class UnoDeck {
 
 	private UnoStack stack, discardStack;
-	private UnoClickableStack clickableStack;
+	private Interaction interaction;
 
-	private boolean startingDeck = false;
-	private ArmorStand leaning, leaning2;
+	private ItemDisplay leaning, leaning2;
 
 	private Location location;
-	private boolean destroyed = false;
 
-	public UnoDeck(Location location) {
-		this.location = location;
-		startingDeck = true;
-		stack = new UnoStack(true, true, location);
+	public UnoDeck(Location deckLocation) {
+		this.location = deckLocation;
+		stack = new UnoStack(true, true, deckLocation);
 
-		for (int i = 0; i < 5; i++)
+		if (interaction == null) {
+			interaction = location.getWorld().spawn(location, Interaction.class);
+			interaction.getPersistentDataContainer().set(ChessAndMorePlugin.getPluginKey(), PersistentDataType.INTEGER, 1);
+			ChessAndMorePlugin.saveEntity(interaction);
+			interaction.setInteractionHeight(.75f * ChessAndMorePlugin.getCardScale());
+			interaction.setInteractionWidth(1.5f * ChessAndMorePlugin.getCardScale());
+		}
+		
+		stack.SetDisplayCount(5);
+		for (int i = 0; i < stack.getDisplayCount(); i++)
 			stack.Push(new UnoCard(UnoAction.Normal));
-		clickableStack = new UnoClickableStack(location);
-		ReloadStands();
+		
+		reloadStands();
 	}
 
-	public UnoDeck(Location location, UnoStack discardStack) {
-		this.location = location;
+	public UnoDeck(Location deckLocation, UnoStack discardStack) {
+		this.location = deckLocation;//LocationUtil.relativeLocation(deckLocation, 0, 1.19f + (0.625f * ChessAndMorePlugin.getCardScale()), 0); //Adjust for display offset
 		this.discardStack = discardStack;
-		stack = new UnoStack(true, true, location);
-		clickableStack = new UnoClickableStack(location);
+		stack = new UnoStack(true, true, deckLocation);
 
 		ArrayList<UnoCard> cards = new ArrayList<UnoCard>();
 
+		if (interaction == null) {
+			interaction = location.getWorld().spawn(location, Interaction.class);
+			ChessAndMorePlugin.saveEntity(interaction);
+			interaction.getPersistentDataContainer().set(ChessAndMorePlugin.getPluginKey(), PersistentDataType.INTEGER, 1);
+			interaction.setInteractionHeight(.75f * ChessAndMorePlugin.getCardScale());
+			interaction.setInteractionWidth(1.5f * ChessAndMorePlugin.getCardScale());
+		}
+		
 		for (int i = 0; i < 10; i++) {
 			if (i < 4) {
 				cards.add(new UnoCard(UnoAction.PlusFour));
@@ -62,24 +79,29 @@ public class UnoDeck {
 			stack.Push(cards.get(index));
 			cards.remove(index);
 		}
-
 	}
 
-	public void Destroy() {
-		destroyed = true;
+	public void destroy() {
 		if (leaning != null) {
+			ChessAndMorePlugin.unsaveEntity(leaning);
 			leaning.remove();
 			leaning = null;
 		}
 		if (leaning2 != null) {
+			ChessAndMorePlugin.unsaveEntity(leaning2);
 			leaning2.remove();
 			leaning2 = null;
 		}
 		stack.Destroy();
-		clickableStack.Destroy();
+		
+		if (interaction != null)
+		{
+			ChessAndMorePlugin.unsaveEntity(interaction);
+			interaction.remove();
+		}
 	}
 
-	public UnoCard Draw() {
+	public UnoCard draw() {
 		UnoCard card = stack.Pop();
 
 		if (stack.Size() == 0 && discardStack.Size() > 1) {
@@ -101,56 +123,56 @@ public class UnoDeck {
 		return card;
 	}
 
-	public boolean HasArmorStand(ArmorStand stand) {
-		return stack.HasArmorStand(stand) || clickableStack.HasArmorStand(stand) || stand.equals(leaning)
-				|| stand.equals(leaning2);
-	}
-
-	public void Insert(ArrayList<UnoCard> cards) {
+	public void insert(ArrayList<UnoCard> cards) {
 		for (int i = 0; i < cards.size(); i++)
 			stack.Push(cards.get(i));
 		stack.Shuffle();
 	}
 
-	private void ReloadStands() {
+	private void reloadStands() {
 		if (leaning != null) {
+			ChessAndMorePlugin.unsaveEntity(leaning);
 			leaning.remove();
 			leaning = null;
 		}
 		if (leaning2 != null) {
+			ChessAndMorePlugin.unsaveEntity(leaning2);
 			leaning2.remove();
 			leaning2 = null;
 		}
-		leaning = location.getWorld().spawn(LocationUtil.relativeLocation(location, 0.5f, 0, -0.60f), ArmorStand.class);
-		leaning.setVisible(false);
-		leaning.setGravity(false);
-		leaning.getEquipment().setHelmet(UnoCard.GetItem(UnoAction.PlusFour, true));
-		leaning.setHeadPose(leaning.getHeadPose().setX(Math.toRadians(180)));
-		leaning.setHeadPose(leaning.getHeadPose().setZ(Math.toRadians(35)));
+		
+		float scale = ChessAndMorePlugin.getCardScale();
+		
+		leaning = location.getWorld().spawn(LocationUtil.relativeLocation(location, 0.55f * scale, 
+				-(0.5f * scale) + ((stack.getDisplayCount() + 1) * stack.getCardOffset().y), -0.60f * scale), ItemDisplay.class);
+		leaning.getPersistentDataContainer().set(ChessAndMorePlugin.getPluginKey(), PersistentDataType.INTEGER, 1);
+		ChessAndMorePlugin.saveEntity(leaning);
+		Transformation transform = leaning.getTransformation();
+		transform.getLeftRotation().rotateZ((float) Math.toRadians(-45)).rotateX((float) Math.toRadians(180));
+		transform.getScale().set(ChessAndMorePlugin.getCardScale());
+		leaning.setTransformation(transform);
+		
+		leaning.setItemStack(UnoCard.GetItem(UnoAction.PlusFour, true));
 
-		leaning2 = location.getWorld().spawn(LocationUtil.relativeLocation(location, -0.55f, 0, 0.30f),
-				ArmorStand.class);
-		leaning2.setVisible(false);
-		leaning2.setGravity(false);
-		leaning2.getEquipment().setHelmet(UnoCard.GetItem(UnoAction.Normal, UnoColor.Blue, 5, true));
-		leaning2.setHeadPose(leaning2.getHeadPose().setX(Math.toRadians(180)));
-		leaning2.setHeadPose(leaning2.getHeadPose().setY(Math.toRadians(25)));
+		leaning2 = location.getWorld().spawn(LocationUtil.relativeLocation(location, -0.55f * scale, 
+				-(0.5f * scale) + ((stack.getDisplayCount() + 1) * stack.getCardOffset().y), 0.30f * scale), ItemDisplay.class);
+		leaning2.getPersistentDataContainer().set(ChessAndMorePlugin.getPluginKey(), PersistentDataType.INTEGER, 1);
+		ChessAndMorePlugin.saveEntity(leaning2);
+		Transformation transform2 = leaning2.getTransformation();
+		transform2.getLeftRotation().rotateY((float) Math.toRadians(25)).rotateX((float) Math.toRadians(180));
+		transform2.getScale().set(ChessAndMorePlugin.getCardScale());
+		leaning2.setTransformation(transform2);
+		
+		leaning2.setItemStack(UnoCard.GetItem(UnoAction.Normal, UnoColor.Blue, 5, true));
+	}
+	
+	public boolean isInteraction(Interaction interaction) {
+		if (this.interaction == null)
+			return false;
+		return this.interaction.getUniqueId().equals(interaction.getUniqueId());
 	}
 
-	public int Size() {
+	public int size() {
 		return stack.Size();
-	}
-
-	public void Update() {
-		if (startingDeck && !destroyed) {
-			if ((leaning == null || leaning.isDead()) || (leaning2 == null || leaning2.isDead()))
-				ReloadStands();
-		}
-		if (stack != null)
-			stack.Update();
-		if (discardStack != null)
-			stack.Update();
-		if (clickableStack != null)
-			clickableStack.Update();
 	}
 }

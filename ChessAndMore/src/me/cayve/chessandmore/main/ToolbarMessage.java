@@ -38,7 +38,7 @@ public class ToolbarMessage {
 			this.message = message;
 			this.isMuted = isMuted;
 		}
-		public Message SetPermanent(boolean permanent) {
+		public Message setPermanent(boolean permanent) {
 			isPermanent = permanent;
 			return this;
 		}

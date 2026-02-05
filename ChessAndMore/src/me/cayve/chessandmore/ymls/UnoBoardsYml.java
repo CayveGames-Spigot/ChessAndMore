@@ -39,6 +39,8 @@ public class UnoBoardsYml {
 		if (info == null)
 			info = YmlFiles.reload("UnoBoards.yml");
 
+		info.customConfig.set("UnoBoards", null);
+		
 		for (int i = 0; i < boards.size(); i++) {
 			info.customConfig.set("UnoBoards." + boards.get(i).GetName(), null);
 			info.customConfig.set("UnoBoards." + boards.get(i).GetName() + ".DrawPile", boards.get(i).GetCorners()[0]);

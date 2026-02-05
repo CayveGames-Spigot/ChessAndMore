@@ -9,11 +9,17 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
-import org.bukkit.entity.ArmorStand;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.entity.Display;
+import org.bukkit.entity.Interaction;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 
 import me.cayve.chessandmore.main.ChessAndMorePlugin;
@@ -31,8 +37,51 @@ import net.md_5.bungee.api.ChatColor;
  */
 public class ChessBoard {
 
+	private String name;
+
+	// The northeast and southwest corners of the board, respectively
+	private Location[] corners;
+
+	private UUID[] players; // The current players of the board
+
+	private ChessPiece[][] pieces; // The 8x8 chess board
+
+	// Whether the game has started and pieces can be moved
+	private boolean started = false;
+
+	// Whether the board has created the pieces for that color yet
+	private boolean[] placedColor = { false, false };
+
+	private int turn = 1;
+
+	private float timeLeft = 6; // The starting timer
+	
+	private int playerTime = -1; //The amount of time set for the board, -1 if no timer
+	
+	private float[] playerTimeLeft = { 0f, 0f }; //Player specific timers, if enabled on the board
+	
+	private Display[] timerDisplay; //The armor stands displaying the time left
+	private Interaction timerInteraction;
+
+	private int state = 0;
+
+	private float scale = 1; // The scale of the entire board
+
+	private ToolbarMessage.Message WAITING_MESSAGE, INFO_MESSAGE; // Cached messages
+
+	private ChessPiece selectedPiece; // The currently selected piece
+
+	private boolean flipped = false; // Whether the board should be flipped
+
+	private String finalMessage;
+	
+	private GeneratedChessDisplay generatedGrid;
+	private boolean requiresGeneratedGrid;
+	
 	// All active boards
 	static ArrayList<ChessBoard> boards = new ArrayList<ChessBoard>();
+	
+	static boolean persistentBoards = false;
 
 	public static void createBoard(ChessBoard board) {
 		boards.add(board);
@@ -84,7 +133,7 @@ public class ChessBoard {
 				if (board.players[i] != null)
 					continue;
 				for (Player player : Bukkit.getOnlinePlayers()) {
-					if (isPlaying(player.getUniqueId()) != null || !board.onSide(player.getLocation(), i))
+					if (getPlayingOnAny(player.getUniqueId()) != null || !board.onSide(player.getLocation(), i))
 						continue;
 					board.joinGame(player.getUniqueId(), i);
 				}
@@ -98,6 +147,7 @@ public class ChessBoard {
 	}
 	// Global initialize function to update all active board timers
 	public static void initialize() {
+		persistentBoards = ChessAndMorePlugin.getPlugin().getConfig().getBoolean("persistentBoards");
 		load();
 		new BukkitRunnable() {
 			public void run() {
@@ -110,7 +160,7 @@ public class ChessBoard {
 	} // initialize
 	// Event for inventory closing
 	public static void inventoryClosed(Player player) {
-		ChessBoard board = isPlaying(player.getUniqueId());
+		ChessBoard board = getPlayingOnAny(player.getUniqueId());
 		if (board == null)
 			return;
 		for (int i = 0; i < 8; i++)
@@ -120,7 +170,7 @@ public class ChessBoard {
 	}
 	// Event for inventory interaction
 	public static void inventoryInteract(Player player, int slot) {
-		ChessBoard board = isPlaying(player.getUniqueId());
+		ChessBoard board = getPlayingOnAny(player.getUniqueId());
 		if (board == null)
 			return;
 		for (int i = 0; i < 8; i++)
@@ -162,7 +212,7 @@ public class ChessBoard {
 	}
 	// Checks if a player is playing a game on any board
 	// Returns the board if true
-	public static ChessBoard isPlaying(UUID player) {
+	public static ChessBoard getPlayingOnAny(UUID player) {
 		for (ChessBoard board : boards) {
 			if ((board.players[0] != null && board.players[0].equals(player))
 					|| (board.players[1] != null && board.players[1].equals(player)))
@@ -172,7 +222,7 @@ public class ChessBoard {
 	}
 	// Attempts to make a player leave from all boards
 	public static void leave(UUID player) {
-		ChessBoard board = isPlaying(player);
+		ChessBoard board = getPlayingOnAny(player);
 		if (board != null)
 			board.leaveGame(player);
 	}
@@ -216,30 +266,37 @@ public class ChessBoard {
 	}
 
 	// Saves all active boards to yml file
-	public static void save() {
+	public static void saveAllBoards() {
 		ChessBoardsYml.saveChessBoards(boards);
 	}
 
 	// Event for block selection
 	public static void selectedBlock(UUID sender, Block blockLocation) {
-		ChessBoard board = isPlaying(sender);
+		ChessBoard board = getPlayingOnAny(sender);
 		if (board == null)
 			return;
 		board.selectedBlock(sender, blockLocation.getLocation());
 	}
 
 	// Event for armor stand selection
-	public static boolean selectedPiece(UUID sender, ArmorStand selected) {
+	public static boolean selectedPiece(UUID sender, Interaction selected) {
 		ChessPiece piece = ChessPiece.isPiece(selected);
 		if (piece == null)
 		{
 			for (ChessBoard board : boards) {
-				if (board.timerDisplay != null && board.timerDisplay[2] != null && board.timerDisplay[2].equals(selected)) {
-					if (isPlaying(sender) != null && isPlaying(sender).equals(board))
+				if (board.timerDisplay != null && board.timerDisplay[2] != null && board.timerInteraction.equals(selected)) {
+					if (getPlayingOnAny(sender) != null && getPlayingOnAny(sender).equals(board))
 						board.adjustTimer();
 					return true;
+				} else if (board.generatedGrid != null) {
+					Coord2D location = board.generatedGrid.isInteraction(selected);
+					if (location != null) {
+						board.selectedBlock(sender, location);
+						return true;
+					}
 				}
 			}
+			
 			return false;
 		}
 			
@@ -247,54 +304,28 @@ public class ChessBoard {
 		return true;
 	}
 
-	private String name;
-
-	// The northeast and southwest corners of the board, respectively
-	private Location[] corners;
-
-	private UUID[] players; // The current players of the board
-
-	private ChessPiece[][] pieces; // The 8x8 chess board
-
-	// Whether the game has started and pieces can be moved
-	private boolean started = false;
-
-	// Whether the board has created the pieces for that color yet
-	private boolean[] placedColor = { false, false };
-
-	private int turn = 1;
-
-	private float timeLeft = 6; // The starting timer
-	
-	private int playerTime = -1; //The amount of time set for the board, -1 if no timer
-	
-	private float[] playerTimeLeft = { 0f, 0f }; //Player specific timers, if enabled on the board
-	
-	private ArmorStand[] timerDisplay; //The armor stands displaying the time left
-
-	private int state = 0;
-
-	private int scale = 1; // The scale of the entire board
-
-	private ToolbarMessage.Message WAITING_MESSAGE, INFO_MESSAGE; // Cached messages
-
-	private ChessPiece selectedPiece; // The currently selected piece
-
-	private boolean flipped = false; // Whether the board should be flipped
-
-	private String finalMessage;
-
 	// Constructor
 	public ChessBoard(String name, Location[] corners, boolean flipped) {
 		this.flipped = flipped;
 		this.name = name;
 		this.corners = corners;
+		
+		scale = (corners[1].getBlockX() - corners[0].getBlockX() + 1) / 8f;
+		
 		players = new UUID[2];
-		timerDisplay = new ArmorStand[3];
+		timerDisplay = new Display[3];
 		pieces = new ChessPiece[8][8];
-		scale = (corners[1].getBlockX() - corners[0].getBlockX() + 1) / 8;
-		WAITING_MESSAGE = new ToolbarMessage.Message(TextYml.getText("waiting")).SetPermanent(true);
-		INFO_MESSAGE = new ToolbarMessage.Message("", ToolbarMessage.Type.Message, true).SetPermanent(true);
+		WAITING_MESSAGE = new ToolbarMessage.Message(TextYml.getText("waiting")).setPermanent(true);
+		INFO_MESSAGE = new ToolbarMessage.Message("", ToolbarMessage.Type.Message, true).setPermanent(true);
+
+		if ((corners[1].getBlockX() + 1 - corners[0].getBlockX()) % 8 != 0)
+		{
+			requiresGeneratedGrid = true;
+			
+			if (persistentBoards)
+				generateBoardDisplay();
+				
+		}
 	} // constructor
 
 	// Checks whether both players are online
@@ -317,6 +348,9 @@ public class ChessBoard {
 				playerTime = 600;
 				break;
 			case 600:
+				playerTime = 900;
+				break;
+			case 900:
 				playerTime = 1800;
 				break;
 			case 1800:
@@ -346,24 +380,54 @@ public class ChessBoard {
 									: x == 2 || x == 5 ? 2 : x == 3 ? 4 : 5;
 					if (pieceType != 4 && allPawn)
 						pieceType = 0;
-					pieces[x][y] = new ChessPiece(color, pieceType, new Coord2D(x, y), this);
+					pieces[x][y] = new ChessPiece(color, pieceType, new Coord2D(x, y), this, scale);
 				} else if (y == (color * 5) + 1) {
-					pieces[x][y] = new ChessPiece(color, 0, new Coord2D(x, y), this);
+					pieces[x][y] = new ChessPiece(color, 0, new Coord2D(x, y), this, scale);
 				}
 			}
 		}
 		
 		if (timerDisplay != null && timerDisplay[2] == null) {
 			timerDisplay[2] = corners[0].getWorld().spawn(LocationUtil.relativeLocation(corners[0], 
-					((corners[1].getBlockX() - corners[0].getBlockX())/2.0f) + 0.5f, 0, 0), ArmorStand.class);
-			timerDisplay[2].setVisible(false);
-			timerDisplay[2].setGravity(false);
+					((corners[1].getBlockX() - corners[0].getBlockX())/2.0f) + 0.5f, 2, 0), ItemDisplay.class);
+			timerDisplay[2].getPersistentDataContainer().set(ChessAndMorePlugin.getPluginKey(), PersistentDataType.INTEGER, 1);
+			ChessAndMorePlugin.saveEntity(timerDisplay[2]);
 			timerDisplay[2].setCustomNameVisible(true);
 			timerDisplay[2].setCustomName(convertSecondsToTimer(playerTime));
-			timerDisplay[2].getEquipment().setHelmet(new ItemStack(Material.CLOCK));
+			((ItemDisplay)timerDisplay[2]).setItemStack(new ItemStack(Material.CLOCK));
+			Transformation transformation = timerDisplay[2].getTransformation();
+			transformation.getScale().set(0.5f, 0.5f, 0.5f);
+			timerDisplay[2].setTransformation(transformation);
+		}
+		if (timerInteraction == null) {
+			timerInteraction = corners[0].getWorld().spawn(LocationUtil.relativeLocation(corners[0], 
+					((corners[1].getBlockX() - corners[0].getBlockX())/2.0f) + 0.5f, 1.8f, 0), Interaction.class);
+			timerInteraction.getPersistentDataContainer().set(ChessAndMorePlugin.getPluginKey(), PersistentDataType.INTEGER, 1);
+			ChessAndMorePlugin.saveEntity(timerInteraction);
+			timerInteraction.setInteractionWidth(0.4f);
+			timerInteraction.setInteractionHeight(0.6f);
+		}
+		
+		if (requiresGeneratedGrid && generatedGrid == null) {
+			generateBoardDisplay();
 		}
 	}
 
+	private void generateBoardDisplay() {
+		if (!requiresGeneratedGrid || generatedGrid != null) return;
+		BlockData blackBlock = corners[0].getBlock().getBlockData();
+		BlockData whiteBlock = null;
+		
+		for (int x = 0; x <= corners[1].getBlockX() - corners[0].getBlockX(); x++) {
+			whiteBlock = LocationUtil.relativeLocation(corners[0], x, 0, 0).getBlock().getBlockData();
+			if (!blackBlock.equals(whiteBlock))
+				break;
+		}
+		
+		if (blackBlock.equals(whiteBlock))
+			whiteBlock = LocationUtil.relativeLocation(corners[0], 0, -1, 0).getBlock().getBlockData();
+		generatedGrid = new GeneratedChessDisplay(corners[0], scale, blackBlock, whiteBlock, flipped);
+	}
 	// Destroys all pieces and anything associated with the board
 	public void destroy() {
 		leaveGame(players[0]);
@@ -381,13 +445,25 @@ public class ChessBoard {
 			{
 				if (timerDisplay[i] != null)
 				{
+					ChessAndMorePlugin.unsaveEntity(timerDisplay[i]);
 					timerDisplay[i].remove();
 					timerDisplay[i] = null;
 				}
 				
 			}
 		}
-				
+		if (timerInteraction != null)
+		{
+			ChessAndMorePlugin.unsaveEntity(timerInteraction);
+			timerInteraction.remove();
+			timerInteraction = null;
+		}
+		
+		if (generatedGrid != null)
+		{
+			generatedGrid.destroy();
+			generatedGrid = null;
+		}
 	}
 
 	// Destroy all of the color's pieces
@@ -403,10 +479,23 @@ public class ChessBoard {
 		if (players[0] == null && players[1] == null) {
 			if (timerDisplay != null && timerDisplay[2] != null)
 			{
+				ChessAndMorePlugin.unsaveEntity(timerDisplay[2]);
 				timerDisplay[2].remove();
 				timerDisplay[2] = null;
 			}
-				
+			
+			if (timerInteraction != null)
+			{
+				ChessAndMorePlugin.unsaveEntity(timerInteraction);
+				timerInteraction.remove();
+				timerInteraction = null;
+			}
+			
+			if (generatedGrid != null && !persistentBoards)
+			{
+				generatedGrid.destroy();
+				generatedGrid = null;
+			}
 		}
 	}
 
@@ -453,7 +542,7 @@ public class ChessBoard {
 
 	// World location of a piece
 	Location getPieceWorldLocation(int x, int y) {
-		return getBlockWorldLocation(x, y).add(new Vector(scale / 2.0f, -0.3f, scale / 2.0f));
+		return getBlockWorldLocation(x, y).add(new Vector(scale / 2.0f, -0.3, scale / 2.0f));
 	}
 
 	// Helper function to get the player class of a UUID, if they're online
@@ -622,22 +711,22 @@ public class ChessBoard {
 	// leave)
 	boolean onSide(Location location, int side) {
 		if (location.getWorld() != corners[0].getWorld()) return false;
-		int half = flipped ? (corners[1].getBlockZ() - corners[0].getBlockZ()) / 2
-				: (corners[1].getBlockX() - corners[0].getBlockX()) / 2;
+		double half = flipped ? (1 + corners[1].getZ() - corners[0].getZ()) / 2
+				: (1 + corners[1].getX() - corners[0].getX()) / 2;
 		if (flipped) // idk man good luck with this one
-			return location.getBlockY() > corners[0].getBlockY() && location.getBlockY() < corners[0].getBlockY() + 4
-					&& location.getBlockX() >= corners[0].getBlockX() && location.getBlockX() <= corners[1].getBlockX()
-					&& ((side == 0 && location.getBlockZ() >= corners[0].getBlockZ()
-							&& location.getBlockZ() <= corners[0].getBlockZ() + half)
-							|| (side == 1 && location.getBlockZ() <= corners[1].getBlockZ()
-									&& location.getBlockZ() >= corners[1].getBlockZ() - half));
+			return location.getY() > corners[0].getBlockY() && location.getY() < corners[0].getBlockY() + 4
+					&& location.getX() > corners[0].getBlockX() && location.getX() < corners[1].getBlockX() + 1
+					&& ((side == 0 && location.getZ() > corners[0].getBlockZ()
+							&& location.getZ() < corners[0].getBlockZ() + half)
+							|| (side == 1 && location.getZ() < corners[1].getBlockZ() + 1
+									&& location.getZ() > corners[1].getBlockZ() - half + 1));
 		else
-			return location.getBlockY() > corners[0].getBlockY() && location.getBlockY() < corners[0].getBlockY() + 4
-					&& location.getBlockZ() >= corners[0].getBlockZ() && location.getBlockZ() <= corners[1].getBlockZ()
-					&& ((side == 0 && location.getBlockX() >= corners[0].getBlockX()
-							&& location.getBlockX() <= corners[0].getBlockX() + half)
-							|| (side == 1 && location.getBlockX() <= corners[1].getBlockX()
-									&& location.getBlockX() >= corners[1].getBlockX() - half));
+			return location.getY() > corners[0].getBlockY() && location.getY() < corners[0].getBlockY() + 4
+					&& location.getZ() > corners[0].getBlockZ() && location.getZ() < corners[1].getBlockZ() + 1
+					&& ((side == 0 && location.getX() > corners[0].getBlockX()
+							&& location.getX() < corners[0].getBlockX() + half)
+							|| (side == 1 && location.getX() < corners[1].getBlockX() + 1
+									&& location.getX() > corners[1].getBlockX() - half + 1));
 	} // onSide
 
 	// Open the promotion inventory for a side
@@ -672,8 +761,11 @@ public class ChessBoard {
 
 		if (!started)
 			return;
+		
 		destroy();
 
+		if (requiresGeneratedGrid && persistentBoards)
+			generateBoardDisplay();
 		started = false;
 	}
 
@@ -681,7 +773,20 @@ public class ChessBoard {
 	void selectedBlock(UUID sender, Location blockLocation) {
 		if (!isTurn(sender) || selectedPiece == null || !bothOnline())
 			return;
-		selectedPiece.selectedBlock(blockLocation);
+		if (scale % 1.0 == 0) {
+			Coord2D coords = new Coord2D((int)(Math.floor(blockLocation.getBlockZ() - corners[0].getBlockZ()) / scale), 
+					(int)(Math.floor(blockLocation.getBlockX() - corners[0].getBlockX()) / scale));
+			if (flipped)
+				coords = new Coord2D(7 - coords.y, coords.x);
+			
+			selectedPiece.selectedLocation(coords);
+		}
+	}
+	
+	void selectedBlock(UUID sender, Coord2D blockLocation) {
+		if (!isTurn(sender) || selectedPiece == null || !bothOnline())
+			return;
+		selectedPiece.selectedLocation(blockLocation);
 	}
 	
 	String convertSecondsToTimer(int seconds) 
@@ -721,16 +826,24 @@ public class ChessBoard {
 				createPieces(i, true);
 			}
 		}
+		ChessAndMorePlugin.unsaveEntity(timerDisplay[2]);
 		timerDisplay[2].remove();
 		timerDisplay[2] = null;
+		
+		if (timerInteraction != null)
+		{
+			ChessAndMorePlugin.unsaveEntity(timerInteraction);
+			timerInteraction.remove();
+		}
+		
 		if (playerTime != -1)
 		{
 			for (int i = 0; i < 2; i++) {
 				playerTimeLeft[i] = playerTime;
 				timerDisplay[i] = corners[i].getWorld().spawn(LocationUtil.relativeLocation(corners[0], 
-						((corners[1].getBlockX() - corners[0].getBlockX())/2.0f) + (i*2-1) + 0.5f, 0, 0), ArmorStand.class);
-				timerDisplay[i].setVisible(false);
-				timerDisplay[i].setGravity(false);
+						((corners[1].getBlockX() - corners[0].getBlockX())/2.0f) + (i*2-1) + 0.5f, 2, 0), TextDisplay.class);
+				timerDisplay[i].getPersistentDataContainer().set(ChessAndMorePlugin.getPluginKey(), PersistentDataType.INTEGER, 1);
+				ChessAndMorePlugin.saveEntity(timerDisplay[i]);
 				timerDisplay[i].setCustomNameVisible(true);
 				timerDisplay[i].setCustomName(convertSecondsToTimer(playerTime));
 			}

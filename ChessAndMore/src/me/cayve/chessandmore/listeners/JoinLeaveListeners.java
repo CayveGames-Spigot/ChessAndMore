@@ -40,7 +40,7 @@ public class JoinLeaveListeners implements Listener {
 
 	@EventHandler
 	public void onLeave(PlayerQuitEvent e) {
-		if (ChessBoard.isPlaying(e.getPlayer().getUniqueId()) != null) {
+		if (ChessBoard.getPlayingOnAny(e.getPlayer().getUniqueId()) != null) {
 			timeout.put(e.getPlayer().getUniqueId(), 360);
 		}
 	}

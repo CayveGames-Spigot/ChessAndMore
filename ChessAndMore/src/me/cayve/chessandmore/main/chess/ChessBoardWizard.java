@@ -42,22 +42,17 @@ public class ChessBoardWizard {
 		if (wizard.step == 2 && location.getBlockY() != wizard.corners[0].getBlockY()) {
 			ToolbarMessage.send(sender, TextYml.getText("sameY"), ToolbarMessage.Type.Warning);
 			return;
-		} else if (wizard.step == 2 && (location.getBlockX() <= wizard.corners[0].getBlockX()
-				|| location.getBlockZ() <= wizard.corners[0].getBlockZ())) {
-			ToolbarMessage.send(sender, TextYml.getText("southEastRequired"), ToolbarMessage.Type.Warning);
-			return;
-		} else if (wizard.step == 2 && ((location.getBlockX() - wizard.corners[0].getBlockX() + 1) % 8 != 0
-				|| (location.getBlockZ() - wizard.corners[0].getBlockZ() + 1) % 8 != 0)) {
-			ToolbarMessage.send(sender, TextYml.getText("minimumSize"), ToolbarMessage.Type.Warning);
-			return;
-		} else if (wizard.step == 2 && location.getBlockX() - wizard.corners[0].getBlockX() != location.getBlockZ()
-				- wizard.corners[0].getBlockZ()) {
+		} else if (wizard.step == 2 && 
+				(Math.max(location.getBlockX(), wizard.corners[0].getBlockX()) - Math.min(location.getBlockX(), wizard.corners[0].getBlockX())) !=
+						(Math.max(location.getBlockZ(), wizard.corners[0].getBlockZ()) - Math.min(location.getBlockZ(), wizard.corners[0].getBlockZ()))) {
 			ToolbarMessage.send(sender, TextYml.getText("squareRequired"), ToolbarMessage.Type.Warning);
 			return;
 		}
+		
 		wizard.corners[wizard.step - 1] = location;
 		wizard.progressStep();
 	} // selectedBlock
+
 	public static void startWizard(Player sender, String name) {
 		if (activeWizards.containsKey(sender.getUniqueId())) {
 			ToolbarMessage.send(sender, TextYml.getText("alreadyCreating"), ToolbarMessage.Type.Error);
@@ -80,9 +75,9 @@ public class ChessBoardWizard {
 
 	private int step;
 
-	private ToolbarMessage.Message NW_MESSAGE = new ToolbarMessage.Message(TextYml.getText("selectNW"))
-			.SetPermanent(true),
-			SE_MESSAGE = new ToolbarMessage.Message(TextYml.getText("selectSE")).SetPermanent(true);
+	private ToolbarMessage.Message FIRST_CORNER = new ToolbarMessage.Message(TextYml.getText("selectFirstCorner"))
+			.setPermanent(true),
+			SECOND_CORNER = new ToolbarMessage.Message(TextYml.getText("selectSecondCorner")).setPermanent(true);
 
 	ChessBoardWizard(Player player, String name) {
 		this.player = player.getUniqueId();
@@ -95,19 +90,41 @@ public class ChessBoardWizard {
 		if (!onlinePlayer.isOnline()) return;
 		switch (step++) {
 		case 0:
-			ToolbarMessage.sendQueue(onlinePlayer, NW_MESSAGE);
+			ToolbarMessage.sendQueue(onlinePlayer, FIRST_CORNER);
 			break;
 		case 1:
-			ToolbarMessage.removeMessage(onlinePlayer, NW_MESSAGE);
-			ToolbarMessage.send(onlinePlayer, SE_MESSAGE);
+			ToolbarMessage.removeMessage(onlinePlayer, FIRST_CORNER);
+			ToolbarMessage.send(onlinePlayer, SECOND_CORNER);
 			break;
 		case 2:
 			// Create
-			ToolbarMessage.removeMessage(onlinePlayer, SE_MESSAGE);
+			ToolbarMessage.removeMessage(onlinePlayer, SECOND_CORNER);
 			ToolbarMessage.send(onlinePlayer, TextYml.getText("boardCreated"), ToolbarMessage.Type.Success);
-			ChessBoard.createBoard(new ChessBoard(name, corners, onlinePlayer.isSneaking()));
+			ChessBoard.createBoard(new ChessBoard(name, getBoardCorners(corners), onlinePlayer.isSneaking()));
 			activeWizards.remove(player);
 			break;
 		}
 	} // progressStep
+	
+	private Location[] getBoardCorners(Location[] input) {
+	    Location[] output = new Location[2];
+	    
+	    // Process first board
+	    output[0] = getNorthWestCorner(input[0], input[1]);
+	    output[1] = getSouthEastCorner(input[0], input[1]);
+
+	    return output;
+	}
+
+	private Location getNorthWestCorner(Location loc1, Location loc2) {
+	    double minX = Math.min(loc1.getX(), loc2.getX());
+	    double maxZ = Math.min(loc1.getZ(), loc2.getZ());
+	    return new Location(loc1.getWorld(), minX, loc1.getY(), maxZ);
+	}
+
+	private Location getSouthEastCorner(Location loc1, Location loc2) {
+	    double maxX = Math.max(loc1.getX(), loc2.getX());
+	    double minZ = Math.max(loc1.getZ(), loc2.getZ());
+	    return new Location(loc1.getWorld(), maxX, loc1.getY(), minZ);
+	}
 }

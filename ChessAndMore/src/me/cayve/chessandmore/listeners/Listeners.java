@@ -1,25 +1,27 @@
 package me.cayve.chessandmore.listeners;
 
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Interaction;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
-import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
+import org.bukkit.event.entity.EntitySpawnEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
-import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
-import org.bukkit.event.player.PlayerInteractAtEntityEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.persistence.PersistentDataType;
 
+import me.cayve.chessandmore.main.ChessAndMorePlugin;
 import me.cayve.chessandmore.main.chess.ChessBoard;
 import me.cayve.chessandmore.main.chess.ChessBoardWizard;
 import me.cayve.chessandmore.main.chess.ChessPiece;
@@ -44,20 +46,6 @@ public class Listeners implements Listener {
 	}
 
 	@EventHandler
-	public void onEntityRemove(EntityDamageEvent e) {
-		UnoBoard.EntityDeathEvent(e);
-		SkipBoBoard.EntityDeathEvent(e);
-	}
-
-	@EventHandler
-	public void onInteractEntity(PlayerInteractAtEntityEvent e) {
-		if (e.getRightClicked().getType() == EntityType.ARMOR_STAND) {
-			UnoBoard.ArmorStandInteractEvent(e);
-			SkipBoBoard.ArmorStandInteractEvent(e);
-		}
-	}
-
-	@EventHandler
 	public void onInventoryClick(InventoryClickEvent e) {
 		UnoBoard.InventoryInteractEvent(e);
 		SkipBoBoard.InventoryInteractEvent(e);
@@ -67,6 +55,17 @@ public class Listeners implements Listener {
 			e.setCancelled(true);
 			ChessBoard.inventoryInteract((Player) e.getWhoClicked(), e.getRawSlot());
 			e.getWhoClicked().closeInventory();
+		}
+	}
+	
+	@EventHandler
+	public void onEntitySpawn(EntitySpawnEvent e) {
+		if (!ChessAndMorePlugin.ownsEntity(e.getEntity())) {
+			if (e.getEntity().getPersistentDataContainer().has(ChessAndMorePlugin.getPluginKey(), PersistentDataType.INTEGER))
+			{
+				e.setCancelled(true);
+				e.getEntity().remove();
+			}
 		}
 	}
 
@@ -90,10 +89,14 @@ public class Listeners implements Listener {
 		}
 	}
 
-	@EventHandler(ignoreCancelled = true)
-	public void onManipulate(PlayerArmorStandManipulateEvent e) {
-		e.setCancelled(ChessBoard.selectedPiece(e.getPlayer().getUniqueId(), e.getRightClicked()));
-	}
+	@EventHandler
+	public void onInteraction(PlayerInteractEntityEvent e) {
+		if (e.getRightClicked() instanceof Interaction) {
+			ChessBoard.selectedPiece(e.getPlayer().getUniqueId(), (Interaction) e.getRightClicked());
+			UnoBoard.isInteraction(e.getPlayer(), (Interaction) e.getRightClicked());
+			SkipBoBoard.isInteraction(e.getPlayer(), (Interaction) e.getRightClicked());
+		}
+ 	}
 
 	@EventHandler
 	public void onPlayerInteract(PlayerInteractEvent e) {

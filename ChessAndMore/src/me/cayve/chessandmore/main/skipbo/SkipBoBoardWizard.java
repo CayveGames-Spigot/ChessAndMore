@@ -7,6 +7,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
+import me.cayve.chessandmore.main.LocationUtil;
 import me.cayve.chessandmore.main.ToolbarMessage;
 import me.cayve.chessandmore.ymls.TextYml;
 
@@ -52,12 +53,12 @@ public class SkipBoBoardWizard {
 
 		SkipBoBoardWizard wizard = activeWizards.get(sender.getUniqueId());
 
-		wizard.lastLocation = location;
+		wizard.lastLocation = LocationUtil.relativeLocation(location, 0.5f, 1, 0.5f);;
 		wizard.locations[wizard.step] = wizard.lastLocation;
 		if (wizard.step % 2 == 0)
 			LeftClick(sender);
 		else {
-			wizard.send(sender, new ToolbarMessage.Message(TextYml.getText("leftToConfirm")).SetPermanent(true), false);
+			wizard.send(sender, new ToolbarMessage.Message(TextYml.getText("leftToConfirm")).setPermanent(true), false);
 		}
 		wizard.UpdatePreview();
 	}
@@ -110,12 +111,12 @@ public class SkipBoBoardWizard {
 		step++;
 		if (step < 2) {
 			send(onlinePlayer, new ToolbarMessage.Message(TextYml.getText("selectBuildPile").replace("<state>",
-					step % 2 == 1 ? TextYml.getText("stateEnd") : TextYml.getText("stateStart"))).SetPermanent(true),
+					step % 2 == 1 ? TextYml.getText("stateEnd") : TextYml.getText("stateStart"))).setPermanent(true),
 					step == 0);
 		} else if (step < 14) {
 			send(onlinePlayer, new ToolbarMessage.Message(TextYml.getText("selectPlayerPile")
 					.replace("<state>", step % 2 == 1 ? TextYml.getText("stateEnd") : TextYml.getText("stateStart"))
-					.replace("<playerNum>", step / 2 + "")).SetPermanent(true), false);
+					.replace("<playerNum>", step / 2 + "")).setPermanent(true), false);
 		} else {
 			if (currentMessage != null)
 				ToolbarMessage.removeMessage(onlinePlayer, currentMessage);
@@ -143,7 +144,7 @@ public class SkipBoBoardWizard {
 				Location[] stackLocations = SkipBoBoard.LocationsFromSE(locations[i], locations[i + 1]);
 				for (int j = 0; j < 5; j++) {
 					if (previewStacks[i * 2 + j + in] == null) {
-						previewStacks[i * 2 + j + in] = new SkipBoStack(true, true, true, stackLocations[j]);
+						previewStacks[i * 2 + j + in] = new SkipBoStack(true, true, true, stackLocations[j], false);
 						previewStacks[i * 2 + j + in].Push(new SkipBoCard(-1));
 					} else {
 						previewStacks[i * 2 + j + in].SetLocation(stackLocations[j]);
@@ -151,7 +152,7 @@ public class SkipBoBoardWizard {
 				}
 			} else if (locations[i] != null) {
 				if (previewStacks[i * 2 + in] == null) {
-					previewStacks[i * 2 + in] = new SkipBoStack(true, true, true, locations[i]);
+					previewStacks[i * 2 + in] = new SkipBoStack(true, true, true, locations[i], false);
 					previewStacks[i * 2 + in].Push(new SkipBoCard(-1));
 				} else {
 					previewStacks[i * 2 + in].SetLocation(locations[i]);

@@ -7,6 +7,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
+import me.cayve.chessandmore.main.LocationUtil;
 import me.cayve.chessandmore.main.ToolbarMessage;
 import me.cayve.chessandmore.ymls.TextYml;
 
@@ -31,7 +32,7 @@ public class UnoBoardWizard {
 			return;
 
 		UnoBoardWizard wizard = activeWizards.get(sender.getUniqueId());
-		wizard.locations[wizard.step - 1] = location;
+		wizard.locations[wizard.step - 1] = LocationUtil.relativeLocation(location, 0.5f, 1, 0.5f);
 		wizard.ProgressStep();
 	}
 	public static void StartWizard(Player sender, String name) {
@@ -57,8 +58,8 @@ public class UnoBoardWizard {
 	private int step;
 
 	private ToolbarMessage.Message NW_MESSAGE = new ToolbarMessage.Message(TextYml.getText("selectDrawPile"))
-			.SetPermanent(true),
-			SE_MESSAGE = new ToolbarMessage.Message(TextYml.getText("selectDiscardPile")).SetPermanent(true);
+			.setPermanent(true),
+			SE_MESSAGE = new ToolbarMessage.Message(TextYml.getText("selectDiscardPile")).setPermanent(true);
 
 	UnoBoardWizard(Player player, String name) {
 		this.player = player.getUniqueId();

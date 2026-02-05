@@ -41,6 +41,8 @@ public class SkipBoBoardsYml {
 		if (info == null)
 			info = YmlFiles.reload("SkipBoBoards.yml");
 
+		info.customConfig.set("SkipBoBoards", null);
+		
 		for (int i = 0; i < boards.size(); i++) {
 			Location[] locations = boards.get(i).GetLocations();
 			info.customConfig.set("SkipBoBoards." + boards.get(i).GetName(), null);

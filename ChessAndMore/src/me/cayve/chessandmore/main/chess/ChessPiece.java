@@ -9,11 +9,14 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
-import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.Interaction;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Transformation;
 
 import me.cayve.chessandmore.main.ChessAndMorePlugin;
 import me.cayve.chessandmore.main.Coord2D;
@@ -27,6 +30,35 @@ import net.md_5.bungee.api.ChatColor;
  * ChessPiece class to house the individual piece functionality
  */
 public class ChessPiece {
+	// All selectable locations
+	private ArrayList<Coord2D> selectable = new ArrayList<Coord2D>();
+
+	private ArrayList<Coord2D> validMoves = new ArrayList<Coord2D>();
+
+	private int type, color;
+	private float scale;
+	private ItemDisplay display;
+	private Interaction interaction;
+
+	private ChessBoard board; // Board this piece is on
+
+	private boolean selected; // Whether the piece is currently selected
+
+	private Coord2D boardLocation; // The location on the board that this piece is on
+
+	private int moveCount; // How many times this piece has been moved (en passant)
+
+	// The location of where this piece is attempting to promote to
+	private Coord2D attemptingPromotion;
+
+	// Whether this piece has been promoted
+	public boolean promoted;
+
+	// Whether this piece can perform an enPassant
+	boolean enPassant;
+
+	Location oldLocationPiece, oldLocationInteraction; // The location of the piece before being selected (for aesthetics)
+	
 	// All active pieces (to keep track in case of memory leak)
 	static ArrayList<ChessPiece> pieces = new ArrayList<ChessPiece>();
 	static boolean hideValidMoves = false;
@@ -76,27 +108,28 @@ public class ChessPiece {
 				for (ChessPiece piece : pieces) {
 					if (!hideValidMoves) {
 						for (Coord2D stand : piece.selectable) {
-							for (float i = 0; i < Math.PI * 2; i += Math.PI / 10 / piece.board.getScale()) {
+							for (float i = 0; i < Math.PI * 2; i += Math.PI / 10 / Math.max(1, piece.board.getScale())) {
 								Location location = LocationUtil.relativeLocation(
 										piece.board.getPieceWorldLocation(stand.x, stand.y),
-										(float) (0.4f * Math.cos(i)) * piece.board.getScale(), 1.4f,
+										(float) (0.4f * Math.cos(i)) * piece.board.getScale(), 
+										piece.board.getScale() % 1 == 0 ? 1.32f : 1.3f + Math.min(0.1f, 0.1f * piece.board.getScale()),
 										(float) (0.4f * Math.sin(i) * piece.board.getScale()));
 								location.getWorld().spawnParticle(Particle.REDSTONE, location, 1,
-										new Particle.DustOptions(Color.MAROON, 0.5f));
+										new Particle.DustOptions(Color.MAROON, Math.min(0.5f, 0.5f * piece.board.getScale())));
 							}
 
 						}
 					}
 					if (piece.selected)
-						piece.armorStand.setRotation(piece.armorStand.getLocation().getYaw() + 1, 0);
+						piece.display.setRotation(piece.display.getLocation().getYaw() + (1f / piece.scale), 0);
 				}
 			}
 		}.runTaskTimer(ChessAndMorePlugin.getPlugin(), 0, 1L);
 	} // initialize
 	// Check if an armor stand is representing a piece
-	public static ChessPiece isPiece(ArmorStand stand) {
+	public static ChessPiece isPiece(Interaction stand) {
 		for (ChessPiece piece : pieces) {
-			if (piece.armorStand.equals(stand))
+			if (piece.interaction.getUniqueId().equals(stand.getUniqueId()))
 				return piece;
 		}
 		return null;
@@ -113,33 +146,6 @@ public class ChessPiece {
 		return pieceTypes[i];
 	}
 
-	// All selectable locations
-	private ArrayList<Coord2D> selectable = new ArrayList<Coord2D>();
-
-	private ArrayList<Coord2D> validMoves = new ArrayList<Coord2D>();
-
-	private int type, color;
-	private ArmorStand armorStand;
-
-	private ChessBoard board; // Board this piece is on
-
-	private boolean selected; // Whether the piece is currently selected
-
-	private Coord2D boardLocation; // The location on the board that this piece is on
-
-	private int moveCount; // How many times this piece has been moved (en passant)
-
-	// The location of where this piece is attempting to promote to
-	private Coord2D attemptingPromotion;
-
-	// Whether this piece has been promoted
-	public boolean promoted;
-
-	// Whether this piece can perform an enPassant
-	boolean enPassant;
-
-	Location oldLocation; // The location of the piece before being selected (for aesthetics)
-
 	// Shallow copy of a piece
 	public ChessPiece(ChessPiece piece) // TEMP COPY OF PIECE, DO NOT SPAWN ARMOR STAND
 	{
@@ -150,12 +156,34 @@ public class ChessPiece {
 	}
 
 	// Constructor for piece
-	ChessPiece(int color, int type, Coord2D boardLocation, ChessBoard board) {
+	ChessPiece(int color, int type, Coord2D boardLocation, ChessBoard board, float boardScale) {
 		this.boardLocation = boardLocation;
+		this.scale = boardScale * (float)ChessAndMorePlugin.getPlugin().getConfig().getDouble("pieceScale");
 		Location location = board.getPieceWorldLocation(boardLocation.x, boardLocation.y);
-		armorStand = location.getWorld().spawn(location, ArmorStand.class);
-		armorStand.setVisible(false);
-		armorStand.setGravity(false);
+		Location tempLocation = LocationUtil.relativeLocation(location, 0, 1.3f + (0.325f * scale), 0);
+		//scale 1 - 1.625f
+		display = location.getWorld().spawn(LocationUtil.relativeLocation(tempLocation, 0, -200, 0), ItemDisplay.class);
+		display.setInterpolationDelay(Math.round(20 * scale));
+		
+		Transformation displayTransform = display.getTransformation();
+		displayTransform.getScale().set(0.65f * scale);
+		display.setTransformation(displayTransform);
+		
+		display.getPersistentDataContainer().set(ChessAndMorePlugin.getPluginKey(), PersistentDataType.INTEGER, 1);
+		ChessAndMorePlugin.saveEntity(display);
+		display.teleport(tempLocation);
+
+		interaction = location.getWorld().spawn(LocationUtil.relativeLocation(location, 0, 1.3f, 0), Interaction.class);
+		interaction.getPersistentDataContainer().set(ChessAndMorePlugin.getPluginKey(), PersistentDataType.INTEGER, 1);
+		ChessAndMorePlugin.saveEntity(interaction);
+		interaction.setInteractionWidth(.35f * scale);
+		if (type > 3)
+			interaction.setInteractionHeight(1.25f * scale);
+		else if (type == 2)
+			interaction.setInteractionHeight(1 * scale);
+		else
+			interaction.setInteractionHeight(.75f * scale);
+		
 		this.board = board;
 		setInfo(type, color);
 		pieces.add(this);
@@ -180,7 +208,10 @@ public class ChessPiece {
 	// Destroys this piece
 	public void destroy() {
 		deleteOptions();
-		armorStand.remove();
+		ChessAndMorePlugin.unsaveEntity(display);
+		ChessAndMorePlugin.unsaveEntity(interaction);
+		display.remove();
+		interaction.remove();
 		pieces.remove(this);
 	}
 
@@ -221,8 +252,9 @@ public class ChessPiece {
 		}
 		board.playSound(board.getPieceWorldLocation(location.x, location.y), Sound.BLOCK_BONE_BLOCK_PLACE, 1, 0.75f);
 		this.boardLocation = location;
-		armorStand.teleport(board.getPieceWorldLocation(location.x, location.y));
-		armorStand.setRotation(((new Random()).nextFloat() - 0.5f) * 15, 0.0f);
+		display.teleport(LocationUtil.relativeLocation(board.getPieceWorldLocation(location.x, location.y), 0, 1.3f + (0.325f * scale), 0));
+		interaction.teleport(LocationUtil.relativeLocation(board.getPieceWorldLocation(location.x, location.y), 0, 1.3f, 0));
+		display.setRotation(((new Random()).nextFloat() - 0.5f) * 15, 0.0f);
 	}
 
 	// Attempt to promote to the selected slot
@@ -269,19 +301,22 @@ public class ChessPiece {
 			return;
 		selected = select;
 		if (selected) {
-			oldLocation = armorStand.getLocation();
-			armorStand.teleport(LocationUtil.relativeLocation(armorStand.getLocation(), 0, 0.5f, 0));
+			oldLocationPiece = display.getLocation();
+			oldLocationInteraction = interaction.getLocation();
+			display.teleport(LocationUtil.relativeLocation(display.getLocation(), 0, 0.5f * scale, 0));
+			interaction.teleport(LocationUtil.relativeLocation(interaction.getLocation(), 0, 0.5f * scale, 0));
 			createOptions();
 		} else {
-			armorStand.teleport(oldLocation);
+			display.teleport(oldLocationPiece);
+			interaction.teleport(oldLocationInteraction);
 			deleteOptions();
 		}
 	}
-
-	// Event for selecting a block location
-	public void selectedBlock(Location location) {
+	
+	public void selectedLocation(Coord2D location) {
 		for (Coord2D v : selectable) {
-			if (board.getBlockWorldLocation(v.x, v.y).equals(location)) {
+			if (v.equals(location))
+			{
 				selectLocation(v);
 				break;
 			}
@@ -313,7 +348,7 @@ public class ChessPiece {
 	public void setInfo(int type, int color) {
 		this.color = color;
 		this.type = type;
-		armorStand.getEquipment().setHelmet(getItem(type, color));
+		display.setItemStack(getItem(type, color));
 	}
 
 	// Get a list of all of the current valid moves a player can make

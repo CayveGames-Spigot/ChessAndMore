@@ -23,7 +23,7 @@ public class ChessBoardsYml {
 				Location[] corners = { info.customConfig.getLocation("ChessBoards." + board + ".NorthWest"),
 						info.customConfig.getLocation("ChessBoards." + board + ".SouthEast") };
 				boolean flipped = info.customConfig.getBoolean("ChessBoards." + board + ".Flipped");
-
+				
 				if (corners[1] != null && corners[1].isWorldLoaded())
 				{
 					ChessBoard newBoard = new ChessBoard(board, corners, flipped);
@@ -43,6 +43,8 @@ public class ChessBoardsYml {
 	public static void saveChessBoards(ArrayList<ChessBoard> boards) {
 		if (info == null)
 			info = YmlFiles.reload("ChessBoards.yml");
+		
+		info.customConfig.set("ChessBoards", null);
 
 		for (int i = 0; i < boards.size(); i++) {
 			info.customConfig.set("ChessBoards." + boards.get(i).getName(), null);
